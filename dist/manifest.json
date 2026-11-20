@@ -1,0 +1,16 @@
+{
+  "short_name": "KaraSync",
+  "name": "Karaoke Đồng Bộ Thời Gian Thực",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#ec4899",
+  "display": "standalone",
+  "orientation": "portrait"
+}

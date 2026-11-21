@@ -51,6 +51,14 @@
   border: 0;
 }
 
+/* Use the visible mobile viewport so browser chrome cannot crop fullscreen video. */
+.player-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
+}
+
 /* Phone Portrait 90deg Landscape Rotation */
 .rotate-landscape-mode {
   transform: rotate(90deg);
@@ -58,5 +66,10 @@
   height: 100vw !important;
   max-width: 100vh !important;
   max-height: 100vw !important;
+  width: 100dvh !important;
+  height: 100dvw !important;
+  max-width: 100dvh !important;
+  max-height: 100dvw !important;
+  flex: none;
   transform-origin: center center;
 }

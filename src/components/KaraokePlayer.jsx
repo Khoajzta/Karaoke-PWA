@@ -28,6 +28,7 @@ export const KaraokePlayer = ({
   peerPositions = {},
   isHost,
   playback,
+  nextSongTitle,
   onSongEnd,
   onSwitchToSearch,
   onFullscreenChange,
@@ -41,12 +42,14 @@ export const KaraokePlayer = ({
   const [currentDiff, setCurrentDiff] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Đang kết nối...");
   const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [secondsRemaining, setSecondsRemaining] = useState(Infinity);
   const isAdjustingRateRef = useRef(false);
   const rateAdjustTimeoutRef = useRef(null);
   const peerPositionsRef = useRef(peerPositions);
   const lastSeekTriggerRef = useRef(playback?.seekTrigger);
   peerPositionsRef.current = peerPositions;
   const lastStateRef = useRef(playback?.state || "paused");
+  const playbackStartTimerRef = useRef(null);
 
   // Fullscreen & Orientation state for Member
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -86,6 +89,65 @@ export const KaraokePlayer = ({
       console.warn("YouTube safeCall handled error:", err);
     }
   }, [isPlayerUsable]);
+
+  const applySharedPlayback = useCallback(() => {
+    if (playbackStartTimerRef.current) {
+      clearTimeout(playbackStartTimerRef.current);
+      playbackStartTimerRef.current = null;
+    }
+
+    safeCall((player) => {
+      if (playback?.state !== "playing") return;
+      const anchor = playback.anchorServerTime;
+      const delay = Number.isFinite(anchor) ? anchor - getServerTime() : 0;
+
+      if (delay > 0) {
+        player.pauseVideo();
+        player.seekTo(0, true);
+        playbackStartTimerRef.current = setTimeout(() => {
+          safeCall((readyPlayer) => readyPlayer.playVideo());
+          playbackStartTimerRef.current = null;
+        }, delay);
+        return;
+      }
+
+      if (Number.isFinite(anchor)) {
+        player.seekTo(Math.max(0, (getServerTime() - anchor) / 1000), true);
+      }
+      player.playVideo();
+    });
+  }, [playback?.state, playback?.anchorServerTime, safeCall]);
+
+  useEffect(() => () => {
+    if (playbackStartTimerRef.current) clearTimeout(playbackStartTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (playback?.state !== "playing" || !playerReady) {
+      setSecondsRemaining(Infinity);
+      return;
+    }
+
+    const updateRemaining = () => {
+      safeCall((player) => {
+        const duration = player.getDuration();
+        const currentTime = player.getCurrentTime();
+        if (Number.isFinite(duration) && duration > 0 && Number.isFinite(currentTime)) {
+          setSecondsRemaining(Math.max(0, duration - currentTime));
+        }
+      });
+    };
+
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 500);
+    return () => clearInterval(timer);
+  }, [playback?.videoId, playback?.state, playerReady, safeCall]);
+
+  const isPreparingCurrentSong = playback?.state === "playing" &&
+    Number.isFinite(playback?.anchorServerTime) && getServerTime() < playback.anchorServerTime;
+  const titleToDisplay = playback?.state === "playing"
+    ? (isPreparingCurrentSong ? playback?.title : secondsRemaining <= 10 ? nextSongTitle : "")
+    : playback?.title;
 
   // Keep track of playback state
   useEffect(() => {
@@ -141,6 +203,7 @@ export const KaraokePlayer = ({
 
     const reportPosition = () => {
       if (playback?.state !== "playing") return;
+      if (playback?.anchorServerTime && getServerTime() < playback.anchorServerTime) return;
       if (playback?.seekTrigger && getServerTime() - playback.seekTrigger < 700) return;
       const currentTime = safeCall((player) => player.getCurrentTime());
       if (!Number.isFinite(currentTime)) return;
@@ -287,14 +350,7 @@ export const KaraokePlayer = ({
 
         // Apply current playback state right away
         if (playback?.state === "playing") {
-          p.playVideo();
-          const currentServerTime = getServerTime();
-          if (playback.anchorServerTime) {
-            const targetTime = (currentServerTime - playback.anchorServerTime) / 1000;
-            if (targetTime > 0) {
-              p.seekTo(targetTime, true);
-            }
-          }
+          applySharedPlayback();
         } else if (playback?.state === "paused") {
           p.pauseVideo();
           if (typeof playback.pausedAt === "number") {
@@ -322,6 +378,11 @@ export const KaraokePlayer = ({
   useEffect(() => {
     if (!playerReady || !playback) return;
 
+    if (playback.state !== "playing" && playbackStartTimerRef.current) {
+      clearTimeout(playbackStartTimerRef.current);
+      playbackStartTimerRef.current = null;
+    }
+
     safeCall((player) => {
       if (playback.state === "paused") {
         player.pauseVideo();
@@ -333,11 +394,29 @@ export const KaraokePlayer = ({
         }
         setSyncStatus("Tạm dừng");
       } else if (playback.state === "playing") {
-        player.playVideo();
+        applySharedPlayback();
         setSyncStatus("Đang đồng bộ...");
       }
     });
-  }, [playback?.state, playback?.pausedAt, playback?.anchorServerTime, playerReady, safeCall]);
+  }, [playback?.state, playback?.pausedAt, playback?.anchorServerTime, playback?.videoId, playerReady, safeCall, applySharedPlayback]);
+
+  const hostVolume = Number.isFinite(Number(peerPositions?.[memberId]?.hostVolume))
+    ? Math.max(0, Math.min(100, Number(peerPositions[memberId].hostVolume)))
+    : 100;
+
+  useEffect(() => {
+    if (isHost || !playerReady) return;
+    safeCall((player) => {
+      player.setVolume(hostVolume);
+      if (hostVolume === 0) {
+        player.mute();
+        setIsMuted(true);
+      } else {
+        player.unMute();
+        setIsMuted(false);
+      }
+    });
+  }, [hostVolume, isHost, playerReady, safeCall]);
 
   // An explicit host seek is intentional, so reset every device to that point.
   useEffect(() => {
@@ -365,8 +444,14 @@ export const KaraokePlayer = ({
           return;
         }
 
-        // Calculate target time: targetTime = ((Date.now() + serverTimeOffset) - anchorServerTime) / 1000
         const currentServerTime = getServerTime();
+        if (currentServerTime < playback.anchorServerTime) {
+          player.pauseVideo();
+          player.seekTo(0, true);
+          return;
+        }
+
+        // Calculate target time from the shared start point.
         const currentTime = player.getCurrentTime();
 
         if (typeof currentTime !== "number" || isNaN(currentTime)) return;
@@ -469,7 +554,7 @@ export const KaraokePlayer = ({
       <div 
         className={
           isFullscreen
-            ? "fixed inset-0 z-[100] bg-black flex items-center justify-center w-screen h-screen overflow-hidden animate-fade-in"
+            ? "player-fullscreen fixed inset-0 z-[100] bg-black flex items-center justify-center overflow-hidden animate-fade-in"
             : "relative w-full aspect-video bg-black rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-slate-800"
         }
       >
@@ -596,7 +681,7 @@ export const KaraokePlayer = ({
           {isFullscreen && (
             <div className="absolute bottom-4 left-4 right-4 z-[110] flex items-center justify-between gap-3 pointer-events-none">
               <div className="bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 max-w-[50%] sm:max-w-md shadow-2xl">
-                <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{playback.title}</h3>
+                {titleToDisplay && <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{titleToDisplay}</h3>}
                 <p className="text-[10px] sm:text-[11px] text-pink-400 font-semibold mt-0.5">🎤 Karaoke Realtime Sync</p>
               </div>
 
@@ -644,9 +729,11 @@ export const KaraokePlayer = ({
       {!isFullscreen && (
         <div className="flex items-center justify-between gap-3 px-1 py-1">
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm md:text-base font-bold text-white truncate" title={playback.title}>
-              {playback.title || `Video ${playback.videoId}`}
-            </h2>
+            {titleToDisplay && (
+              <h2 className="text-sm md:text-base font-bold text-white truncate" title={titleToDisplay}>
+                {titleToDisplay || `Video ${playback.videoId}`}
+              </h2>
+            )}
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="flex items-center gap-1">
                 <span

@@ -48,6 +48,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     const result = await signInWithPopup(auth, googleProvider);
+    setUser(result.user);
     localStorage.removeItem("karaoke_guest_name");
     return result.user;
   };

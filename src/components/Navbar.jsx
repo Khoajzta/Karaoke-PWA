@@ -19,9 +19,14 @@ import { subscribeServerTimeOffset } from "../firebase";
 export const Navbar = ({ 
   roomId, 
   isHost, 
+  isRoomOwner = false,
+  ownerUid,
   onOpenConfig, 
   onOpenQR, 
   onLeaveRoom,
+  onAddHost,
+  onRemoveHost,
+  onSetMemberVolume,
   wakeLockActive,
   memberCount = 1,
   membersList = []
@@ -30,12 +35,20 @@ export const Navbar = ({
   const [copied, setCopied] = useState(false);
   const [offsetMs, setOffsetMs] = useState(0);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 639px)").matches);
 
   useEffect(() => {
     const unsub = subscribeServerTimeOffset((val) => {
       setOffsetMs(Math.round(val));
     });
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const updateViewport = () => setIsMobile(media.matches);
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
   }, []);
 
   const handleCopyRoom = () => {
@@ -59,9 +72,9 @@ export const Navbar = ({
 
         {/* Center: Room & Sync Info (if in room) */}
         {roomId && (
-          <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-center min-w-0">
+          <div className={`flex items-center gap-1 sm:gap-2 min-w-0 ${isHost ? "flex-none justify-start sm:flex-1 sm:justify-center" : "flex-1 justify-center"}`}>
             {/* Room code badge */}
-            <div className="h-9 sm:h-9 flex items-center gap-0.5 sm:gap-1 bg-slate-800/80 border border-slate-700/80 px-1 sm:px-2 rounded-xl text-xs min-w-0">
+            <div className={`${isHost ? "hidden sm:flex" : "flex"} h-9 items-center gap-0.5 sm:gap-1 bg-slate-800/80 border border-slate-700/80 px-1 sm:px-2 rounded-xl text-xs min-w-0`}>
               <span className="font-mono font-bold text-pink-400 tracking-wider text-[11px] sm:text-xs truncate">#{roomId}</span>
               <button
                 onClick={handleCopyRoom}
@@ -70,7 +83,7 @@ export const Navbar = ({
               >
                 {copied ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400" /> : <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
               </button>
-              {isHost && <button
+              {isHost && !isMobile && <button
                 onClick={onOpenQR}
                 title="Mã QR phòng"
                 className="w-8 h-8 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center hover:text-white text-slate-400 transition flex-shrink-0 rounded-lg hover:bg-slate-700/70"
@@ -105,7 +118,8 @@ export const Navbar = ({
                   </div>
                   <div className="space-y-1.5 max-h-52 overflow-y-auto">
                     {membersList.length > 0 ? membersList.map((m) => (
-                      <div key={m.uid} className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-800/60 transition">
+                      <div key={m.uid} className="flex flex-col gap-1.5 p-1.5 rounded-xl hover:bg-slate-800/60 transition">
+                       <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
                           {m.photoURL ? (
                             <img src={m.photoURL} alt={m.name} className="w-6 h-6 rounded-full flex-shrink-0" />
@@ -119,6 +133,50 @@ export const Navbar = ({
                         {m.isHost && (
                           <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded flex-shrink-0">HOST</span>
                         )}
+                        {isHost && !m.isHost && (
+                          <button
+                            onClick={async () => {
+                              const added = await onAddHost?.(m);
+                              if (added) setIsMembersOpen(false);
+                            }}
+                            title={`Thêm ${m.name || "khách"} làm host`}
+                            aria-label={`Thêm ${m.name || "khách"} làm host`}
+                            className="flex-shrink-0 flex items-center gap-1 px-1.5 py-1 rounded-lg border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 text-[10px] font-semibold transition"
+                          >
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Thêm host</span>
+                          </button>
+                        )}
+                        {isRoomOwner && m.isHost && m.uid !== ownerUid && (
+                          <button
+                            onClick={async () => {
+                              const removed = await onRemoveHost?.(m);
+                              if (removed) setIsMembersOpen(false);
+                            }}
+                            title={`Gỡ quyền host của ${m.name || "thành viên"}`}
+                            aria-label={`Gỡ quyền host của ${m.name || "thành viên"}`}
+                            className="flex-shrink-0 flex items-center gap-1 px-1.5 py-1 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-[10px] font-semibold transition"
+                          >
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Gỡ host</span>
+                          </button>
+                        )}
+                       </div>
+                       {isHost && !m.isHost && (
+                         <label className="flex items-center gap-2 pl-8 text-[10px] text-slate-400">
+                           <span className="whitespace-nowrap">Âm lượng {m.hostVolume ?? 100}%</span>
+                           <input
+                             type="range"
+                             min="0"
+                             max="100"
+                             step="1"
+                             value={m.hostVolume ?? 100}
+                             onChange={(event) => onSetMemberVolume?.(m, event.target.value)}
+                             aria-label={`Điều chỉnh âm lượng của ${m.name || "khách"}`}
+                             className="min-w-0 flex-1 accent-pink-500 h-1 cursor-pointer"
+                           />
+                         </label>
+                       )}
                       </div>
                     )) : (
                       <div className="text-xs text-slate-500 text-center py-2">Đang kết nối...</div>
@@ -171,19 +229,26 @@ export const Navbar = ({
                 </span>
               </div>
 
+              {!user.isAnonymous && (
+                <button onClick={() => logout()} title="Đăng xuất tài khoản Google" aria-label="Đăng xuất tài khoản Google" className="w-9 h-9 sm:w-auto sm:h-auto sm:px-2 sm:py-1.5 rounded-xl border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500 transition flex items-center justify-center sm:gap-1">
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px] font-semibold">Đăng xuất</span>
+                </button>
+              )}
+
               {/* Leave button — icon only on mobile */}
               {roomId && (
                 <button
                   onClick={onLeaveRoom}
-                  title={isHost ? "Rời & giải tán phòng" : "Rời phòng"}
+                  title={isRoomOwner ? "Rời & giải tán phòng" : "Rời phòng"}
                   className={`w-9 h-9 sm:w-auto sm:h-auto sm:p-1.5 rounded-xl transition text-xs flex items-center justify-center sm:gap-1 ${
-                    isHost
+                    isRoomOwner
                       ? "text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/30"
                       : "text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-700/60"
                   }`}
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[11px] font-semibold">{isHost ? "Giải tán" : "Rời"}</span>
+                  <span className="hidden sm:inline text-[11px] font-semibold">{isRoomOwner ? "Giải tán" : "Rời"}</span>
                 </button>
               )}
             </>

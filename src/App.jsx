@@ -23,6 +23,7 @@ import { QRCodeModal } from "./components/QRCodeModal";
 import { AuthModal } from "./components/AuthModal";
 import { ConfigModal } from "./components/ConfigModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { isRoomHost, isRoomOwner as checkRoomOwner } from "./utils/roomRoles";
 import { 
   Sparkles, 
   QrCode, 
@@ -62,7 +63,7 @@ export function App() {
   const [authModalConfig, setAuthModalConfig] = useState({
     isOpen: false,
     requiredGoogle: false,
-    title: "Đăng nhập",
+    title: "ÄÄƒng nháº­p",
     pendingRoomCode: null,
     pendingAction: null
   });
@@ -122,21 +123,31 @@ export function App() {
 
   // Determine if current user is Host
   const isHost = useMemo(() => {
-    if (!user) return false;
-    if (createdRoomId && createdRoomId === currentRoomId) return true;
-    if (!roomData?.info?.hostUid) return false;
-    return user.uid === roomData.info.hostUid;
-  }, [user, createdRoomId, currentRoomId, roomData?.info?.hostUid]);
+    return isRoomHost({
+      userId: user?.uid,
+      hostUid: roomData?.info?.hostUid,
+      coHosts: roomData?.info?.coHosts,
+      createdRoomId,
+      currentRoomId
+    });
+  }, [user, createdRoomId, currentRoomId, roomData?.info?.hostUid, roomData?.info?.coHosts]);
+
+  const isRoomOwner = useMemo(() => checkRoomOwner({
+    userId: user?.uid,
+    hostUid: roomData?.info?.hostUid,
+    createdRoomId,
+    currentRoomId
+  }), [user, createdRoomId, currentRoomId, roomData?.info?.hostUid]);
 
   // Keep a host's active room recoverable if the query string is lost on reload.
   useEffect(() => {
-    if (!currentRoomId || !isHost) return;
+    if (!currentRoomId || !isRoomOwner) return;
     try {
       localStorage.setItem("karaoke_host_room_id", currentRoomId);
     } catch (error) {
       console.warn("Could not remember the host room:", error);
     }
-  }, [currentRoomId, isHost]);
+  }, [currentRoomId, isRoomOwner]);
 
   // Listen to Room in Firebase RTDB
   useEffect(() => {
@@ -159,14 +170,19 @@ export function App() {
           setRoomData(snapshot.val());
           setRoomError(null);
         } else {
-          setRoomError(`Chủ phòng đã rời hoặc phòng "${currentRoomId}" đã được giải tán!`);
+          setRoomError(`Chá»§ phÃ²ng Ä‘Ã£ rá»i hoáº·c phÃ²ng "${currentRoomId}" Ä‘Ã£ Ä‘Æ°á»£c giáº£i tÃ¡n!`);
           setRoomData(null);
+          setRoomError(null);
+          setCurrentRoomId(null);
+          setCreatedRoomId(null);
+          setGuestRoomName("");
+          window.history.pushState({ path: window.location.pathname }, "", window.location.pathname);
         }
       },
       (error) => {
         setRoomLoading(false);
         console.error("RTDB Room Listener Error:", error);
-        setRoomError(error.message || "Lỗi đọc dữ liệu phòng từ Firebase RTDB");
+        setRoomError(error.message || "Lá»—i Ä‘á»c dá»¯ liá»‡u phÃ²ng tá»« Firebase RTDB");
       }
     );
 
@@ -197,8 +213,8 @@ export function App() {
     const memberData = {
       uid: user.uid,
       name: user.isAnonymous
-        ? guestRoomName || user.displayName || (isHost ? "Host" : "Khách")
-        : user.displayName || "Thành viên",
+        ? guestRoomName || user.displayName || (isHost ? "Host" : "KhÃ¡ch")
+        : user.displayName || "ThÃ nh viÃªn",
       photoURL: user.photoURL || null,
       isHost: Boolean(isHost),
       joinedAt: Date.now()
@@ -231,7 +247,7 @@ export function App() {
           return;
         }
         if (!result.committed && active) {
-          setRoomError("Phòng này đang được đóng vì không còn người tham gia.");
+          setRoomError("PhÃ²ng nÃ y Ä‘ang Ä‘Æ°á»£c Ä‘Ã³ng vÃ¬ khÃ´ng cÃ²n ngÆ°á»i tham gia.");
         }
       } catch (error) {
         console.error("Failed to register room presence:", error);
@@ -292,20 +308,97 @@ export function App() {
     window.history.pushState({ path: newUrl }, "", newUrl);
   };
 
+  const handleAddHost = async (member) => {
+    if (!isHost || !currentRoomId || !user?.uid || !member?.uid || member.uid === user.uid) return false;
+    if (!window.confirm(`ThÃªm ${member.name || "khÃ¡ch"} lÃ m host? Báº¡n váº«n giá»¯ quyá»n host.`)) {
+      return false;
+    }
+
+    try {
+      const targetRef = ref(rtdb, `rooms/${currentRoomId}/members/${member.uid}`);
+      const targetSnapshot = await get(targetRef);
+      if (!targetSnapshot.exists()) {
+        window.alert("ThÃ nh viÃªn nÃ y Ä‘Ã£ rá»i phÃ²ng.");
+        return false;
+      }
+
+      const infoRef = ref(rtdb, `rooms/${currentRoomId}/info`);
+      const result = await runTransaction(infoRef, (info) => {
+        const actorIsHost = info?.hostUid === user.uid || Boolean(info?.coHosts?.[user.uid]);
+        if (!info || !actorIsHost || info.hostUid === member.uid || info.coHosts?.[member.uid]) return;
+        return {
+          ...info,
+          coHosts: {
+            ...(info.coHosts || {}),
+            [member.uid]: true
+          }
+        };
+      });
+
+      if (!result.committed) {
+        window.alert("KhÃ´ng thá»ƒ thÃªm host. NgÆ°á»i nÃ y cÃ³ thá»ƒ Ä‘Ã£ Ä‘Æ°á»£c cáº¥p quyá»n hoáº·c quyá»n host Ä‘Ã£ thay Ä‘á»•i.");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to transfer host role:", error);
+      window.alert(error.message || "KhÃ´ng thá»ƒ chuyá»ƒn quyá»n host lÃºc nÃ y.");
+      return false;
+    }
+  };
+
+  const handleRemoveHost = async (member) => {
+    if (!isRoomOwner || !currentRoomId || !user?.uid || !member?.uid || member.uid === user.uid) return false;
+    if (!window.confirm(`Gá»¡ quyá»n host cá»§a ${member.name || "thÃ nh viÃªn"}? NgÆ°á»i nÃ y váº«n á»Ÿ láº¡i phÃ²ng.`)) {
+      return false;
+    }
+
+    try {
+      const infoRef = ref(rtdb, `rooms/${currentRoomId}/info`);
+      const result = await runTransaction(infoRef, (info) => {
+        if (info?.hostUid !== user.uid || !info.coHosts?.[member.uid]) return;
+        const coHosts = { ...info.coHosts };
+        delete coHosts[member.uid];
+        return { ...info, coHosts };
+      });
+
+      if (!result.committed) {
+        window.alert("KhÃ´ng thá»ƒ gá»¡ quyá»n host. HÃ£y kiá»ƒm tra danh sÃ¡ch host rá»“i thá»­ láº¡i.");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to remove co-host:", error);
+      window.alert(error.message || "KhÃ´ng thá»ƒ gá»¡ quyá»n host lÃºc nÃ y.");
+      return false;
+    }
+  };
+
+  const handleSetMemberVolume = async (member, volume) => {
+    if (!isHost || !currentRoomId || !member?.uid || member.isHost) return;
+    await update(ref(rtdb, `rooms/${currentRoomId}/members/${member.uid}`), {
+      hostVolume: Math.max(0, Math.min(100, Number(volume)))
+    });
+  };
+
   // Handle Leave Room: If Host leaves, remove the room completely from RTDB
   const handleLeaveRoom = async () => {
     const targetRoomId = currentRoomId;
 
-    if (isHost && targetRoomId) {
+    if (isRoomOwner && targetRoomId) {
       const confirmDelete = window.confirm(
-        `Bạn là Chủ phòng (Host).\nNếu bạn rời phòng, phòng "${targetRoomId}" sẽ bị XÓA và toàn bộ thành viên sẽ được giải tán.\nBạn có chắc chắn muốn rời và xóa phòng không?`
+        `Báº¡n lÃ  Chá»§ phÃ²ng (Host).\nNáº¿u báº¡n rá»i phÃ²ng, phÃ²ng "${targetRoomId}" sáº½ bá»‹ XÃ“A vÃ  toÃ n bá»™ thÃ nh viÃªn sáº½ Ä‘Æ°á»£c giáº£i tÃ¡n.\nBáº¡n cÃ³ cháº¯c cháº¯n muá»‘n rá»i vÃ  xÃ³a phÃ²ng khÃ´ng?`
       );
       if (!confirmDelete) return;
 
       try {
         await remove(ref(rtdb, `rooms/${targetRoomId}`));
       } catch (err) {
-        console.error("Lỗi khi xóa phòng khỏi RTDB:", err);
+        console.error("Lá»—i khi xÃ³a phÃ²ng khá»i RTDB:", err);
+        window.alert(err.message || "Không thể giải tán phòng. Vui lòng thử lại.");
+        return;
       }
     }
 
@@ -355,7 +448,7 @@ export function App() {
       videoId: song.videoId,
       title: song.title,
       thumbnail: song.thumbnail,
-      addedBy: song.addedBy || user?.displayName || "Khách",
+      addedBy: song.addedBy || user?.displayName || "KhÃ¡ch",
       addedByUid: song.addedByUid || user?.uid || "anon",
       order: maxOrder + 1,
       createdAt: getServerTime()
@@ -365,13 +458,14 @@ export function App() {
   // Host: Play a song immediately (Play Now)
   const handlePlayNow = async (song) => {
     if (!isHost || !currentRoomId) return;
-    const nowServer = getServerTime();
+    // Give every YouTube iframe time to load the new video before its shared start.
+    const startAtServerTime = getServerTime() + 3000;
 
     await update(ref(rtdb, `rooms/${currentRoomId}/playback`), {
       videoId: song.videoId,
       title: song.title,
       state: "playing",
-      anchorServerTime: nowServer,
+      anchorServerTime: startAtServerTime,
       pausedAt: 0
     });
 
@@ -387,13 +481,13 @@ export function App() {
 
     if (queueItems.length > 0) {
       const nextSong = queueItems[0];
-      const nowServer = getServerTime();
+      const startAtServerTime = getServerTime() + 3000;
 
       await update(ref(rtdb, `rooms/${currentRoomId}/playback`), {
         videoId: nextSong.videoId,
         title: nextSong.title,
         state: "playing",
-        anchorServerTime: nowServer,
+        anchorServerTime: startAtServerTime,
         pausedAt: 0
       });
 
@@ -444,7 +538,7 @@ export function App() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-4">
         <div className="w-12 h-12 rounded-full border-4 border-pink-500/20 border-t-pink-500 animate-spin mb-4"></div>
-        <p className="text-sm font-semibold text-slate-300">Đang đồng bộ phiên đăng nhập...</p>
+        <p className="text-sm font-semibold text-slate-300">Äang Ä‘á»“ng bá»™ phiÃªn Ä‘Äƒng nháº­p...</p>
       </div>
     );
   }
@@ -456,9 +550,14 @@ export function App() {
         <Navbar
           roomId={currentRoomId}
           isHost={isHost}
+          isRoomOwner={isRoomOwner}
+          ownerUid={roomData?.info?.hostUid}
           onOpenConfig={() => setIsConfigOpen(true)}
           onOpenQR={() => setIsQROpen(true)}
           onLeaveRoom={handleLeaveRoom}
+          onAddHost={handleAddHost}
+          onRemoveHost={handleRemoveHost}
+          onSetMemberVolume={handleSetMemberVolume}
           wakeLockActive={wakeLockActive}
           memberCount={memberCount}
           membersList={membersList}
@@ -489,10 +588,10 @@ export function App() {
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="w-14 h-14 rounded-full border-4 border-pink-500/20 border-t-pink-500 animate-spin mb-4"></div>
             <h3 className="text-xl font-bold text-white mb-1">
-              Đang kết nối phòng {currentRoomId}...
+              Äang káº¿t ná»‘i phÃ²ng {currentRoomId}...
             </h3>
             <p className="text-xs text-slate-400 max-w-sm">
-              Đang đồng bộ trạng thái video và dữ liệu thời gian thực từ Firebase
+              Äang Ä‘á»“ng bá»™ tráº¡ng thÃ¡i video vÃ  dá»¯ liá»‡u thá»i gian thá»±c tá»« Firebase
             </p>
           </div>
         ) : roomError ? (
@@ -501,7 +600,7 @@ export function App() {
             <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4">
               <AlertTriangle className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Không thể tải dữ liệu phòng</h3>
+            <h3 className="text-lg font-bold text-white mb-2">KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u phÃ²ng</h3>
             <p className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 rounded-xl mb-6 font-mono">
               {roomError}
             </p>
@@ -511,10 +610,10 @@ export function App() {
               <div className="w-full text-left bg-slate-900 border border-amber-500/30 rounded-2xl p-4 mb-6 text-xs text-amber-200 space-y-3">
                 <div className="font-bold text-amber-300 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Cách khắc phục lỗi Permission Denied trong Firebase Console:</span>
+                  <span>CÃ¡ch kháº¯c phá»¥c lá»—i Permission Denied trong Firebase Console:</span>
                 </div>
                 <p>
-                  Vào <strong>Firebase Console</strong> &gt; Chọn dự án <strong>karaoke-pwa-1221e</strong> &gt; <strong>Realtime Database</strong> &gt; tab <strong>Rules</strong>, dán đoạn rules sau và bấm <strong>Publish</strong>:
+                  VÃ o <strong>Firebase Console</strong> &gt; Chá»n dá»± Ã¡n <strong>karaoke-pwa-1221e</strong> &gt; <strong>Realtime Database</strong> &gt; tab <strong>Rules</strong>, dÃ¡n Ä‘oáº¡n rules sau vÃ  báº¥m <strong>Publish</strong>:
                 </p>
                 <div className="relative bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300">
                   <pre>{`{
@@ -532,7 +631,7 @@ export function App() {
                     className="absolute right-2 top-2 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 text-[10px]"
                   >
                     {copiedRule ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedRule ? "Đã chép" : "Sao chép"}</span>
+                    <span>{copiedRule ? "ÄÃ£ chÃ©p" : "Sao chÃ©p"}</span>
                   </button>
                 </div>
               </div>
@@ -544,14 +643,14 @@ export function App() {
                 className="flex items-center gap-2 px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-pink-500/20 transition"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Tải lại trang</span>
+                <span>Táº£i láº¡i trang</span>
               </button>
               <button
                 onClick={handleLeaveRoom}
                 className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700 transition"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Về sảnh chính</span>
+                <span>Vá» sáº£nh chÃ­nh</span>
               </button>
             </div>
           </div>
@@ -572,6 +671,7 @@ export function App() {
                         isHost={true}
                         externalPlayerRef={hostPlayerRef}
                         playback={roomData?.playback}
+                        nextSongTitle={queueItems[0]?.title}
                         onSongEnd={handleNextSong}
                         onFullscreenChange={setIsPlayerFullscreen}
                       />
@@ -595,7 +695,7 @@ export function App() {
                         }`}
                       >
                         <ListMusic className="w-4 h-4" />
-                        <span>Hàng chờ ({queueItems.length})</span>
+                        <span>HÃ ng chá» ({queueItems.length})</span>
                       </button>
 
                       <button
@@ -607,7 +707,7 @@ export function App() {
                         }`}
                       >
                         <Search className="w-4 h-4" />
-                        <span>Tìm bài mới</span>
+                        <span>TÃ¬m bÃ i má»›i</span>
                       </button>
 
                       <button
@@ -619,7 +719,7 @@ export function App() {
                         }`}
                       >
                         <QrCode className="w-4 h-4" />
-                        <span>Mã QR</span>
+                        <span>MÃ£ QR</span>
                       </button>
                     </div>
 
@@ -652,15 +752,15 @@ export function App() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs text-slate-400">Mã phòng:</span>
+                                <span className="text-xs text-slate-400">MÃ£ phÃ²ng:</span>
                                 <span className="font-mono text-pink-400 font-bold text-base">{currentRoomId}</span>
                                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                  {memberCount} người đang có mặt
+                                  {memberCount} ngÆ°á»i Ä‘ang cÃ³ máº·t
                                 </span>
                               </div>
                               <div className="text-xs text-slate-400 mt-1">
-                                Quét mã QR hoặc chia sẻ link để bạn bè cùng hát và chọn bài
+                                QuÃ©t mÃ£ QR hoáº·c chia sáº» link Ä‘á»ƒ báº¡n bÃ¨ cÃ¹ng hÃ¡t vÃ  chá»n bÃ i
                               </div>
                             </div>
                           </div>
@@ -670,7 +770,7 @@ export function App() {
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-bold transition text-xs shadow-lg shadow-pink-500/25"
                           >
                             <QrCode className="w-4 h-4" />
-                            <span>Mở Mã QR Toàn Màn Hình</span>
+                            <span>Má»Ÿ MÃ£ QR ToÃ n MÃ n HÃ¬nh</span>
                           </button>
                         </div>
                       )}
@@ -684,15 +784,15 @@ export function App() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs text-slate-400">Phòng:</span>
+                            <span className="text-xs text-slate-400">PhÃ²ng:</span>
                             <span className="font-mono text-pink-400 font-bold">{currentRoomId}</span>
                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                              {memberCount} người trong phòng
+                              {memberCount} ngÆ°á»i trong phÃ²ng
                             </span>
                           </div>
                           <div className="text-xs text-slate-400 mt-1">
-                            Quét mã QR hoặc nhập mã để bạn bè cùng hát và thêm bài
+                            QuÃ©t mÃ£ QR hoáº·c nháº­p mÃ£ Ä‘á»ƒ báº¡n bÃ¨ cÃ¹ng hÃ¡t vÃ  thÃªm bÃ i
                           </div>
                         </div>
                       </div>
@@ -702,7 +802,7 @@ export function App() {
                         className="flex items-center gap-2 px-4 py-2 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-white rounded-xl border border-pink-500/30 transition text-xs font-semibold"
                       >
                         <QrCode className="w-4 h-4" />
-                        <span>Xem Mã QR Chi Tiết</span>
+                        <span>Xem MÃ£ QR Chi Tiáº¿t</span>
                       </button>
                     </div>
                   </div>
@@ -745,6 +845,7 @@ export function App() {
                         peerPositions={roomData?.members}
                         isHost={false}
                         playback={roomData?.playback}
+                        nextSongTitle={queueItems[0]?.title}
                         onSongEnd={handleNextSong}
                         onFullscreenChange={setIsPlayerFullscreen}
                         onSwitchToSearch={() => {
@@ -767,7 +868,7 @@ export function App() {
                         }`}
                       >
                         <ListMusic className="w-4 h-4" />
-                        <span>Danh sách chờ ({queueItems.length})</span>
+                        <span>Danh sÃ¡ch chá» ({queueItems.length})</span>
                       </button>
 
                       <button
@@ -779,7 +880,7 @@ export function App() {
                         }`}
                       >
                         <Search className="w-4 h-4" />
-                        <span>Chọn bài mới</span>
+                        <span>Chá»n bÃ i má»›i</span>
                       </button>
                     </div>
                   </div>
@@ -836,7 +937,7 @@ export function App() {
         isOpen={authModalConfig.isOpen}
         requiredGoogle={authModalConfig.requiredGoogle}
         title={authModalConfig.title}
-        onClose={() => {
+        onClose={(googleLoginSucceeded = false) => {
           const action = authModalConfig.pendingAction;
           const code = authModalConfig.pendingRoomCode;
           setAuthModalConfig((prev) => ({ 
@@ -846,9 +947,9 @@ export function App() {
             pendingAction: null 
           }));
 
-          if (action === "create") {
+          if (action === "create" && googleLoginSucceeded) {
             setPendingCreateRoom(true);
-          } else if (code) {
+          } else if (code && googleLoginSucceeded) {
             handleJoinRoom(code, false);
           }
         }}

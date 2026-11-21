@@ -48,9 +48,9 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       return;
     }
 
-    if (!user) {
+    if (!user || user.isAnonymous) {
       onRequireAuth({ 
-        requiredGoogle: false, 
+        requiredGoogle: true, 
         title: "Đăng nhập để tạo phòng (Host)",
         pendingAction: "create"
       });
@@ -99,7 +99,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
 
   // Auto-trigger create room if user just logged in from "Tạo Phòng" request
   useEffect(() => {
-    if (pendingCreateRoom && user) {
+    if (pendingCreateRoom && user && !user.isAnonymous) {
       onClearPendingCreate();
       handleCreateRoom();
     }

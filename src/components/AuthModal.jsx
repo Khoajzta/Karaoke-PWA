@@ -17,7 +17,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
       setError("");
       setIsDomainError(false);
       await loginWithGoogle();
-      onClose();
+      onClose(true);
     } catch (err) {
       console.error(err);
       let msg = err.message || "Đăng nhập Google thất bại!";
@@ -45,7 +45,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
       setLoading(true);
       setError("");
       await loginAsGuest(guestName);
-      onClose();
+      onClose(false);
     } catch (err) {
       console.error(err);
       setError(err.message || "Đăng nhập khách thất bại!");
@@ -133,6 +133,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
             </p>
           </div>
 
+          {!requiredGoogle && <>
           <div className="relative flex items-center justify-center pt-1">
             <hr className="w-full border-slate-800" />
             <span className="absolute bg-slate-900 px-3 text-xs text-slate-500 uppercase tracking-wider font-semibold">
@@ -176,6 +177,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
               )}
             </button>
           </form>
+          </>}
         </div>
       </div>
     </div>

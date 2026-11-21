@@ -255,24 +255,6 @@ export const KaraokePlayer = ({
   // ==========================================
   // HOST REMOTE MUTE / UNMUTE LISTENER
   // ==========================================
-  const lastRemoteMuteTriggerRef = useRef(playback?.memberMuteTrigger);
-
-  useEffect(() => {
-    if (isHost) return; // Only Member reacts to Host's remote mute command
-    if (playback?.memberMuteTrigger && playback.memberMuteTrigger !== lastRemoteMuteTriggerRef.current) {
-      lastRemoteMuteTriggerRef.current = playback.memberMuteTrigger;
-      safeCall((p) => {
-        if (playback.memberMuted) {
-          p.mute();
-          setIsMuted(true);
-        } else {
-          p.unMute();
-          setIsMuted(false);
-        }
-      });
-    }
-  }, [playback?.memberMuteTrigger, playback?.memberMuted, isHost, safeCall]);
-
   // Handle Fullscreen toggle
   const toggleFullscreen = () => {
     if (isFullscreen) {
@@ -345,8 +327,16 @@ export const KaraokePlayer = ({
     setTimeout(() => {
       safeCall((p) => {
         // Luôn bật tiếng khi video sẵn sàng — member tự mute nếu muốn
-        p.unMute();
-        setIsMuted(false);
+        if (!isHost) {
+          p.setVolume(hostVolume);
+          if (playback?.memberMuted || hostVolume === 0) {
+            p.mute();
+            setIsMuted(true);
+          } else {
+            p.unMute();
+            setIsMuted(false);
+          }
+        }
 
         // Apply current playback state right away
         if (playback?.state === "playing") {
@@ -408,7 +398,7 @@ export const KaraokePlayer = ({
     if (isHost || !playerReady) return;
     safeCall((player) => {
       player.setVolume(hostVolume);
-      if (hostVolume === 0) {
+      if (playback?.memberMuted || hostVolume === 0) {
         player.mute();
         setIsMuted(true);
       } else {
@@ -416,7 +406,7 @@ export const KaraokePlayer = ({
         setIsMuted(false);
       }
     });
-  }, [hostVolume, isHost, playerReady, safeCall]);
+  }, [hostVolume, playback?.memberMuted, isHost, playerReady, safeCall]);
 
   // An explicit host seek is intentional, so reset every device to that point.
   useEffect(() => {

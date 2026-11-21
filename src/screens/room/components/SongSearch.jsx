@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { 
   Search, 
   Link as LinkIcon, 
@@ -9,10 +9,51 @@ import {
   AlertCircle,
   Check,
   ClipboardPaste,
-  ArrowRight
+  ArrowRight,
+  Mic
 } from "lucide-react";
 import { extractYouTubeId, fetchYouTubeOEmbed, searchYouTubeAPI } from "../../../utils/youtube";
 import { useAuth } from "../../../context/AuthContext";
+
+const fetchYouTubeSuggestions = (query, signal) => new Promise((resolve, reject) => {
+  const callbackName = `karaokeSuggestions_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const script = document.createElement("script");
+  const url = new URL("https://suggestqueries.google.com/complete/search");
+  url.searchParams.set("client", "chrome");
+  url.searchParams.set("ds", "yt");
+  url.searchParams.set("hl", "vi");
+  url.searchParams.set("q", query);
+  url.searchParams.set("callback", callbackName);
+  script.src = url.toString();
+
+  let timeoutId;
+  const cleanup = () => {
+    clearTimeout(timeoutId);
+    script.remove();
+    delete window[callbackName];
+    signal.removeEventListener("abort", onAbort);
+  };
+  const onAbort = () => {
+    cleanup();
+    reject(new DOMException("Suggestion request aborted", "AbortError"));
+  };
+
+  window[callbackName] = (data) => {
+    cleanup();
+    resolve(Array.isArray(data?.[1]) ? data[1].filter((item) => typeof item === "string") : []);
+  };
+  script.onerror = () => {
+    cleanup();
+    reject(new Error("Could not load YouTube suggestions"));
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  timeoutId = setTimeout(() => {
+    cleanup();
+    reject(new Error("YouTube suggestions timed out"));
+  }, 5000);
+  if (signal.aborted) onAbort();
+  else document.head.appendChild(script);
+});
 
 export const SongSearch = ({
   isHost,
@@ -25,9 +66,14 @@ export const SongSearch = ({
   const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url'
   const [searchQuery, setSearchQuery] = useState("");
   const [querySuggestions, setQuerySuggestions] = useState([]);
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const speechRecognitionRef = useRef(null);
 
   // URL paste state
   const [urlInput, setUrlInput] = useState("");
@@ -39,34 +85,116 @@ export const SongSearch = ({
 
   useEffect(() => {
     const query = searchQuery.trim();
-    if (query.length < 2 || extractYouTubeId(query)) {
+    if (suggestionsDismissed || query.length < 2 || extractYouTubeId(query)) {
       setQuerySuggestions([]);
+      setIsLoadingSuggestions(false);
+      setSuggestionError("");
       return undefined;
     }
     const controller = new AbortController();
+    setQuerySuggestions([]);
+    setSuggestionError("");
+    setIsLoadingSuggestions(true);
     const timer = setTimeout(async () => {
       try {
-        const url = new URL("https://suggestqueries.google.com/complete/search");
-        url.searchParams.set("client", "firefox");
-        url.searchParams.set("ds", "yt");
-        url.searchParams.set("hl", "vi");
-        url.searchParams.set("q", query);
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) throw new Error("Autocomplete request failed");
-        const data = await response.json();
-        setQuerySuggestions(Array.isArray(data?.[1]) ? data[1].slice(0, 8) : []);
+        let matches = [];
+        let requestError;
+        for (const endpoint of ["https://www.google.com/complete/search", "https://suggestqueries.google.com/complete/search"]) {
+          try {
+            const url = new URL(endpoint);
+            url.searchParams.set("client", "firefox");
+            url.searchParams.set("ds", "yt");
+            url.searchParams.set("hl", "vi");
+            url.searchParams.set("q", query);
+            const response = await fetch(url, {
+              signal: controller.signal,
+              mode: "cors",
+              headers: { Accept: "application/json" }
+            });
+            if (!response.ok) throw new Error("Autocomplete request failed");
+            const data = await response.json();
+            matches = Array.isArray(data?.[1]) ? data[1].filter((item) => typeof item === "string") : [];
+            if (matches.length) break;
+          } catch (error) {
+            if (error.name === "AbortError") throw error;
+            requestError = error;
+          }
+        }
+        if (!matches.length) {
+          try {
+            matches = await fetchYouTubeSuggestions(query, controller.signal);
+          } catch (error) {
+            if (error.name === "AbortError") throw error;
+            if (requestError) throw requestError;
+            throw error;
+          }
+        }
+        setQuerySuggestions(matches.slice(0, 8));
+        if (matches.length === 0) setSuggestionError("Không tìm thấy gợi ý cho nội dung này.");
       } catch (error) {
-        if (error.name !== "AbortError") setQuerySuggestions([]);
+        if (error.name !== "AbortError") {
+          setQuerySuggestions([]);
+          setSuggestionError("Không tải được gợi ý tìm kiếm. Vui lòng thử lại.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingSuggestions(false);
       }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [searchQuery]);
+  }, [searchQuery, suggestionsDismissed]);
+
+  const toggleVoiceSearch = () => {
+    if (isListening) {
+      speechRecognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSearchError("Trình duyệt này chưa hỗ trợ tìm kiếm bằng giọng nói.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    speechRecognitionRef.current = recognition;
+    recognition.lang = "vi-VN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onstart = () => {
+      setIsListening(true);
+      setSearchError("");
+    };
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+      if (!transcript) return;
+      setSearchQuery(transcript);
+      handleSearch(null, transcript);
+    };
+    recognition.onerror = (event) => {
+      const message = event.error === "not-allowed"
+        ? "Vui lòng cấp quyền sử dụng micro để tìm kiếm bằng giọng nói."
+        : "Không nhận diện được giọng nói. Vui lòng thử lại.";
+      setSearchError(message);
+    };
+    recognition.onend = () => setIsListening(false);
+
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      setSearchError("Không thể bật micro lúc này. Vui lòng thử lại.");
+    }
+  };
+
+  useEffect(() => () => speechRecognitionRef.current?.stop(), []);
 
   // Search or detect pasted URL in search bar
   const handleSearch = async (e, queryOverride) => {
     if (e) e.preventDefault();
     const query = (queryOverride ?? searchQuery).trim();
     if (!query) return;
+    setSuggestionsDismissed(true);
+    setQuerySuggestions([]);
 
     // Check if query is actually a YouTube link!
     const detectedId = extractYouTubeId(query);
@@ -234,8 +362,8 @@ export const SongSearch = ({
                 type="text"
                 placeholder="Tên bài hát... hoặc dán link YouTube"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
+                onChange={(e) => { setSuggestionsDismissed(false); setSearchQuery(e.target.value); }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-20 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
               />
               <button
                 type="submit"
@@ -244,19 +372,36 @@ export const SongSearch = ({
               >
                 {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               </button>
+              <button
+                type="button"
+                onClick={toggleVoiceSearch}
+                disabled={isSearching}
+                aria-label={isListening ? "Dừng tìm kiếm bằng giọng nói" : "Tìm kiếm bằng giọng nói"}
+                title={isListening ? "Dừng nghe" : "Tìm kiếm bằng giọng nói"}
+                className={`absolute right-10 top-1/2 -translate-y-1/2 p-2 rounded-lg transition disabled:opacity-40 ${isListening ? "text-red-400 animate-pulse" : "text-slate-400 hover:text-white"}`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+              </button>
             </div>
           </form>
 
-          {suggestions.length > 0 && !isSearching && (
+          {suggestions.length > 0 && !isSearching && !suggestionsDismissed && (
             <div className="-mt-2 mb-2 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden flex-shrink-0">
               {suggestions.map((song) => (
-                <button key={song.videoId} type="button" onClick={() => { setSearchQuery(song.title); handleSearch(null, song.title); }} className="w-full flex items-center gap-2 p-2 text-left hover:bg-slate-800">
+                <button key={song.videoId} type="button" onClick={() => { setQuerySuggestions([]); setSuggestionError(""); setSearchQuery(song.title); handleSearch(null, song.title); }} className="w-full flex items-center gap-2 p-2 text-left hover:bg-slate-800">
                   <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                   <span className="text-xs text-white truncate">{song.title}</span>
                   <span className="ml-auto text-[10px] text-slate-500">Gần đây</span>
                 </button>
               ))}
             </div>
+          )}
+
+          {isLoadingSuggestions && searchQuery.trim().length >= 2 && !isSearching && (
+            <p className="-mt-2 mb-2 px-2 text-[11px] text-slate-500">Đang tải gợi ý...</p>
+          )}
+          {suggestionError && !isSearching && (
+            <p className="-mt-2 mb-2 px-2 text-[11px] text-slate-500">{suggestionError}</p>
           )}
 
           {searchError && (

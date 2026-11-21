@@ -184,13 +184,13 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-16">
       {/* Hero Header */}
       <div className="text-center mb-10 space-y-3">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-semibold">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Real-time Sync Video Hát Song Ca</span>
         </div>
         <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white">
           Hát Karaoke Đồng Bộ <br className="hidden sm:block" />
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300">
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
             Không Độ Trễ Trên Mọi Thiết Bị
           </span>
         </h1>
@@ -240,15 +240,15 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       {/* Main Action Cards */}
       <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
         {/* Create Room (Host) */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between hover:border-pink-500/40 transition">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between hover:border-red-500/40 transition">
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-lg shadow-pink-500/25">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-500 to-rose-600 flex items-center justify-center text-white shadow-lg shadow-red-500/25">
               <Monitor className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Tạo Phòng Hát Mới
-                <span className="text-[10px] font-bold bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full uppercase border border-pink-500/30">
+                <span className="text-[10px] font-bold bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full uppercase border border-red-500/30">
                   Host
                 </span>
               </h2>
@@ -259,15 +259,15 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
 
             <ul className="text-xs text-slate-400 space-y-1.5 pt-2">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                 <span>Điều khiển phát, tạm dừng, tua nhạc</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                 <span>Kéo thả sắp xếp danh sách chờ</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                 <span>Hiển thị mã QR để khách quét nhanh</span>
               </li>
             </ul>
@@ -276,7 +276,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
           <button
             onClick={handleCreateRoom}
             disabled={loading}
-            className="mt-6 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-pink-500/25 transition active:scale-[0.98] disabled:opacity-50 text-sm"
+            className="mt-6 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-red-500/25 transition active:scale-[0.98] disabled:opacity-50 text-sm"
           >
             <PlusCircle className="w-4 h-4" />
             <span>{loading ? "Đang tạo phòng..." : "Tạo Phòng (Host)"}</span>
@@ -286,7 +286,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
         {/* Join Room (Member) */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between hover:border-slate-700 transition">
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-pink-400 shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-red-400 shadow-md">
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
@@ -312,7 +312,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
                   placeholder="VD: KARA88"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center font-mono text-lg font-bold tracking-widest text-pink-400 placeholder-slate-600 focus:outline-none focus:border-pink-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center font-mono text-lg font-bold tracking-widest text-red-400 placeholder-slate-600 focus:outline-none focus:border-red-500"
                 />
               </div>
 
@@ -328,7 +328,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
                     placeholder="Nhập tên của bạn"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-sm text-white placeholder-slate-600 focus:outline-none focus:border-pink-500"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-sm text-white placeholder-slate-600 focus:outline-none focus:border-red-500"
                   />
                 </div>
               )}
@@ -339,7 +339,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
                 className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded-xl border border-slate-700 transition active:scale-[0.98] disabled:opacity-50 text-sm"
               >
                 <span>{loading ? "Đang vào..." : "Tham Gia Phòng"}</span>
-                <ArrowRight className="w-4 h-4 text-pink-400" />
+                <ArrowRight className="w-4 h-4 text-red-400" />
               </button>
             </form>
           </div>
@@ -353,15 +353,15 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       {/* Feature highlights */}
       <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-center">
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-pink-400 font-bold text-sm mb-1">Đồng Bộ Mili-giây</div>
+          <div className="text-red-400 font-bold text-sm mb-1">Đồng Bộ Mili-giây</div>
           <p className="text-xs text-slate-400">Sử dụng Firebase RTDB ServerTimeOffset và thuật toán Rate Adjust mượt mà.</p>
         </div>
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-pink-400 font-bold text-sm mb-1">Mute Thông Minh</div>
+          <div className="text-red-400 font-bold text-sm mb-1">Mute Thông Minh</div>
           <p className="text-xs text-slate-400">Tự động tắt tiếng trên điện thoại tránh vọng âm, vượt rào cản Autoplay.</p>
         </div>
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-pink-400 font-bold text-sm mb-1">Chống Khóa Màn Hình</div>
+          <div className="text-red-400 font-bold text-sm mb-1">Chống Khóa Màn Hình</div>
           <p className="text-xs text-slate-400">Tự động kích hoạt Screen Wake Lock giúp điện thoại luôn sáng khi đang hát.</p>
         </div>
       </div>

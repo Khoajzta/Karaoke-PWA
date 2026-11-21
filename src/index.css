@@ -4,9 +4,41 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 min-h-screen font-sans;
+    @apply bg-neutral-950 text-slate-100 min-h-screen font-sans;
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* Mobile search is presented as its own YouTube style screen. */
+@media (max-width: 1023px) {
+  .mobile-search-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    height: 100dvh;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    background: #0f0f0f;
+  }
+  .mobile-search-back { display: flex; }
+  .mobile-search-screen > div.flex.bg-slate-950 { background: #212121; }
+  .mobile-search-screen .mobile-video-result {
+    flex-wrap: wrap;
+    padding: 0 0 0.75rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .mobile-search-screen .mobile-video-result img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 0.75rem;
+  }
+  .mobile-search-screen .mobile-video-result > div:first-of-type { padding-left: 0.25rem; }
+  .mobile-search-screen .mobile-video-result h4 { font-size: 0.9rem; line-height: 1.3rem; }
 }
 
 /* Custom scrollbars */

@@ -58,7 +58,7 @@ export const QRCodeModal = ({ isOpen, onClose, roomId }) => {
         {/* 6-character Room Code display */}
         <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 mb-4">
           <span className="text-xs text-slate-400 block mb-1">Mã phòng 6 ký tự:</span>
-          <span className="font-mono text-2xl font-black text-pink-400 tracking-widest">
+          <span className="font-mono text-2xl font-black text-red-400 tracking-widest">
             {roomId}
           </span>
         </div>
@@ -75,7 +75,7 @@ export const QRCodeModal = ({ isOpen, onClose, roomId }) => {
 
           <button
             onClick={handleShare}
-            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition shadow-lg shadow-pink-500/20"
+            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition shadow-lg shadow-red-500/20"
           >
             <Share2 className="w-4 h-4" />
             <span>Chia sẻ</span>

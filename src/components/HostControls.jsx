@@ -142,7 +142,7 @@ export const HostControls = ({
     <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl flex flex-col gap-3">
       {/* Top row: Progress bar */}
       <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-pink-400 w-10 text-right">
+        <span className="font-mono text-xs text-red-400 w-10 text-right">
           {formatTime(currentTime)}
         </span>
         <input
@@ -151,7 +151,7 @@ export const HostControls = ({
           max={Math.max(currentTime + 60, 300)}
           value={currentTime}
           onChange={(e) => handleSeek(parseFloat(e.target.value))}
-          className="flex-1 accent-pink-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+          className="flex-1 accent-red-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
         />
         <button
           onClick={handleForceResync}
@@ -190,7 +190,7 @@ export const HostControls = ({
             <button
               onClick={handlePlay}
               disabled={!hasVideo}
-              className="min-h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-pink-500/25 transition active:scale-95 text-xs sm:text-sm disabled:opacity-40 disabled:pointer-events-none"
+              className="min-h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/25 transition active:scale-95 text-xs sm:text-sm disabled:opacity-40 disabled:pointer-events-none"
             >
               <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               <span>Phát nhạc</span>
@@ -238,11 +238,11 @@ export const HostControls = ({
             title={isMemberFs ? "Bấm để thu nhỏ màn hình tất cả Member" : "Bấm để phóng to toàn màn hình tất cả Member"}
             className={`min-h-10 flex items-center justify-center gap-1 px-3 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition active:scale-95 border ${
               isMemberFs
-                ? "bg-pink-500 text-white border-pink-400 shadow-lg shadow-pink-500/30"
+                ? "bg-red-500 text-white border-red-400 shadow-lg shadow-red-500/30"
                 : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-400" />
+            <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
             {isMemberFs ? (
               <>
                 <Minimize2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -259,7 +259,7 @@ export const HostControls = ({
           {/* Skip to Next Song */}
           <button
             onClick={onNextSong}
-            className="min-h-10 flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 hover:text-pink-300 font-semibold rounded-xl border border-slate-700 transition active:scale-95 text-xs sm:text-sm"
+            className="min-h-10 flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-red-300 font-semibold rounded-xl border border-slate-700 transition active:scale-95 text-xs sm:text-sm"
           >
             <span>Qua bài</span>
             <SkipForward className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

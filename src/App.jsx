@@ -537,14 +537,14 @@ export function App() {
   if (authLoading && isConfigured) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-4">
-        <div className="w-12 h-12 rounded-full border-4 border-pink-500/20 border-t-pink-500 animate-spin mb-4"></div>
+        <div className="w-12 h-12 rounded-full border-4 border-red-500/20 border-t-red-500 animate-spin mb-4"></div>
         <p className="text-sm font-semibold text-slate-300">Äang Ä‘á»“ng bá»™ phiÃªn Ä‘Äƒng nháº­p...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-pink-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white">
       {/* Top Navigation: Hidden when player is in fullscreen mode */}
       {!isPlayerFullscreen && (
         <Navbar
@@ -586,7 +586,7 @@ export function App() {
         ) : roomLoading && !roomData ? (
           /* Loading Room State */
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-14 h-14 rounded-full border-4 border-pink-500/20 border-t-pink-500 animate-spin mb-4"></div>
+            <div className="w-14 h-14 rounded-full border-4 border-red-500/20 border-t-red-500 animate-spin mb-4"></div>
             <h3 className="text-xl font-bold text-white mb-1">
               Äang káº¿t ná»‘i phÃ²ng {currentRoomId}...
             </h3>
@@ -640,7 +640,7 @@ export function App() {
             <div className="flex gap-3">
               <button
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-pink-500/20 transition"
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-500/20 transition"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Táº£i láº¡i trang</span>
@@ -690,7 +690,7 @@ export function App() {
                         onClick={() => setHostMobileTab("queue")}
                         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition ${
                           hostMobileTab === "queue"
-                            ? "bg-pink-500 text-white shadow-md shadow-pink-500/25"
+                            ? "bg-red-500 text-white shadow-md shadow-red-500/25"
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
@@ -702,7 +702,7 @@ export function App() {
                         onClick={() => setHostMobileTab("search")}
                         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition ${
                           hostMobileTab === "search"
-                            ? "bg-pink-500 text-white shadow-md shadow-pink-500/25"
+                            ? "bg-red-500 text-white shadow-md shadow-red-500/25"
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
@@ -714,7 +714,7 @@ export function App() {
                         onClick={() => setHostMobileTab("info")}
                         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition ${
                           hostMobileTab === "info"
-                            ? "bg-pink-500 text-white shadow-md shadow-pink-500/25"
+                            ? "bg-red-500 text-white shadow-md shadow-red-500/25"
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
@@ -738,6 +738,7 @@ export function App() {
                       {hostMobileTab === "search" && (
                         <SongSearch
                           isHost={true}
+                          onBack={() => setHostMobileTab("queue")}
                           onAddToQueue={handleAddToQueue}
                           onPlayNow={handlePlayNow}
                           onOpenConfig={() => setIsConfigOpen(true)}
@@ -747,13 +748,13 @@ export function App() {
                       {hostMobileTab === "info" && (
                         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
                               <Users className="w-5 h-5" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs text-slate-400">MÃ£ phÃ²ng:</span>
-                                <span className="font-mono text-pink-400 font-bold text-base">{currentRoomId}</span>
+                                <span className="font-mono text-red-400 font-bold text-base">{currentRoomId}</span>
                                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                                   {memberCount} ngÆ°á»i Ä‘ang cÃ³ máº·t
@@ -767,7 +768,7 @@ export function App() {
 
                           <button
                             onClick={() => setIsQROpen(true)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-bold transition text-xs shadow-lg shadow-pink-500/25"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-bold transition text-xs shadow-lg shadow-red-500/25"
                           >
                             <QrCode className="w-4 h-4" />
                             <span>Má»Ÿ MÃ£ QR ToÃ n MÃ n HÃ¬nh</span>
@@ -779,13 +780,13 @@ export function App() {
                     {/* Room Info & QR Banner on Host Screen (Desktop only >= lg) */}
                     <div className="hidden lg:flex bg-slate-900/60 border border-slate-800 rounded-2xl p-4 items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
                           <Users className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-slate-400">PhÃ²ng:</span>
-                            <span className="font-mono text-pink-400 font-bold">{currentRoomId}</span>
+                            <span className="font-mono text-red-400 font-bold">{currentRoomId}</span>
                             <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                               {memberCount} ngÆ°á»i trong phÃ²ng
@@ -799,7 +800,7 @@ export function App() {
 
                       <button
                         onClick={() => setIsQROpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-white rounded-xl border border-pink-500/30 transition text-xs font-semibold"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-xl border border-red-500/30 transition text-xs font-semibold"
                       >
                         <QrCode className="w-4 h-4" />
                         <span>Xem MÃ£ QR Chi Tiáº¿t</span>
@@ -863,7 +864,7 @@ export function App() {
                         onClick={() => setMobileTab("queue")}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition ${
                           mobileTab === "queue"
-                            ? "bg-pink-500 text-white shadow-md"
+                            ? "bg-red-500 text-white shadow-md"
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
@@ -875,7 +876,7 @@ export function App() {
                         onClick={() => setMobileTab("search")}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition ${
                           mobileTab === "search"
-                            ? "bg-pink-500 text-white shadow-md"
+                            ? "bg-red-500 text-white shadow-md"
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
@@ -898,6 +899,7 @@ export function App() {
                     ) : (
                       <SongSearch
                         isHost={false}
+                        onBack={() => setMobileTab("queue")}
                         onAddToQueue={handleAddToQueue}
                         onPlayNow={handlePlayNow}
                         onOpenConfig={() => setIsConfigOpen(true)}

@@ -88,7 +88,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
                     <strong>👉 Cách 1 (Nhanh nhất):</strong> Nhập tên vào ô <em>"Tham gia bằng tên Khách"</em> bên dưới để tạo phòng ngay lập tức mà không cần Google!
                   </div>
                   <div>
-                    <strong>👉 Cách 2 (Nếu muốn dùng Google trên điện thoại):</strong> Vào <strong>Firebase Console</strong> &gt; <strong>Authentication</strong> &gt; tab <strong>Settings</strong> &gt; mục <strong>Authorized domains</strong> &gt; bấm <strong>Add domain</strong> và nhập: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-pink-400 font-bold">{currentHost}</code>
+                    <strong>👉 Cách 2 (Nếu muốn dùng Google trên điện thoại):</strong> Vào <strong>Firebase Console</strong> &gt; <strong>Authentication</strong> &gt; tab <strong>Settings</strong> &gt; mục <strong>Authorized domains</strong> &gt; bấm <strong>Add domain</strong> và nhập: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-red-400 font-bold">{currentHost}</code>
                   </div>
                 </div>
               )}
@@ -154,7 +154,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
                   placeholder="Nhập tên của bạn (VD: Tuấn Ca Sĩ)..."
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
                 />
               </div>
             </div>
@@ -162,7 +162,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
             <button
               type="submit"
               disabled={loading || !isConfigured}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500/20 to-rose-500/20 hover:from-pink-500 hover:to-rose-500 text-pink-300 hover:text-white font-semibold py-2.5 px-4 rounded-xl transition border border-pink-500/30 disabled:opacity-50 active:scale-[0.98] text-xs"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500/20 to-rose-500/20 hover:from-red-500 hover:to-rose-500 text-red-300 hover:text-white font-semibold py-2.5 px-4 rounded-xl transition border border-red-500/30 disabled:opacity-50 active:scale-[0.98] text-xs"
             >
               {isCreatingRoom ? (
                 <>

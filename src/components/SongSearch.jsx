@@ -18,7 +18,8 @@ export const SongSearch = ({
   isHost,
   onAddToQueue,
   onPlayNow,
-  onOpenConfig
+  onOpenConfig,
+  onBack
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url'
@@ -167,7 +168,8 @@ export const SongSearch = ({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-5 flex flex-col h-full shadow-xl overflow-hidden">
+    <div className={`${onBack ? "mobile-search-screen" : ""} bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-5 flex flex-col h-full shadow-xl overflow-hidden`}>
+      {onBack && <button onClick={onBack} className="mobile-search-back hidden items-center gap-2 text-white font-semibold py-2"><span aria-hidden="true">←</span> Tìm kiếm</button>}
       {/* Tab Switcher */}
       <div className="flex bg-slate-950 p-1 rounded-xl mb-3 border border-slate-800 flex-shrink-0">
         <button
@@ -205,12 +207,12 @@ export const SongSearch = ({
                 placeholder="Tên bài hát... hoặc dán link YouTube"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
               />
               <button
                 type="submit"
                 disabled={isSearching || !searchQuery.trim()}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition disabled:opacity-40"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-40"
               >
                 {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               </button>
@@ -225,7 +227,7 @@ export const SongSearch = ({
                 {searchError.includes("YouTube API Key") && (
                   <button
                     onClick={onOpenConfig}
-                    className="text-pink-400 underline font-semibold mt-1 block"
+                    className="text-red-400 underline font-semibold mt-1 block"
                   >
                     Bấm vào đây để cài đặt YouTube API Key
                   </button>
@@ -238,7 +240,7 @@ export const SongSearch = ({
           <div className="flex-1 overflow-y-auto space-y-1.5 md:space-y-2 pr-0.5 md:pr-1 min-h-0">
             {searchResults.length === 0 && !isSearching && !searchError && (
               <div className="text-center py-6 text-slate-500 text-xs">
-                <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30 text-pink-400" />
+                <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-30 text-red-400" />
                 <span>Nhập tên bài hát hoặc dán link YouTube</span>
               </div>
             )}
@@ -248,7 +250,7 @@ export const SongSearch = ({
               return (
                 <div
                   key={item.videoId}
-                  className="flex items-center gap-2 p-2 md:gap-2.5 md:p-2 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 rounded-xl transition"
+                  className="flex items-center gap-2 p-2 md:gap-2.5 md:p-2 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 rounded-xl transition mobile-video-result"
                 >
                   <img
                     src={item.thumbnail}
@@ -277,7 +279,7 @@ export const SongSearch = ({
                         className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition ${
                         isJustAdded
                           ? "bg-emerald-500 text-white"
-                          : "bg-pink-500 hover:bg-pink-600 text-white"
+                          : "bg-red-500 hover:bg-red-600 text-white"
                       }`}
                     >
                       {isJustAdded ? <Check className="w-4 h-4 md:w-3.5 md:h-3.5" /> : <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />}
@@ -300,7 +302,7 @@ export const SongSearch = ({
                 placeholder="Dán link (VD: youtube.com/watch?v=... hoặc youtu.be/...)"
                 value={urlInput}
                 onChange={handleUrlChange}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-24 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-24 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
               />
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <button
@@ -309,12 +311,12 @@ export const SongSearch = ({
                   title="Dán từ Clipboard"
                   className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition text-[10px]"
                 >
-                  <ClipboardPaste className="w-3.5 h-3.5 text-pink-400" />
+                  <ClipboardPaste className="w-3.5 h-3.5 text-red-400" />
                 </button>
                 <button
                   type="submit"
                   disabled={isResolvingUrl || !urlInput.trim()}
-                  className="px-2.5 py-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 flex items-center gap-1"
+                  className="px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold transition disabled:opacity-40 flex items-center gap-1"
                 >
                   {isResolvingUrl ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -337,7 +339,7 @@ export const SongSearch = ({
 
           {/* Compact, Beautiful Preview Card that is NEVER clipped or covered */}
           {urlPreview ? (
-            <div className="p-3 bg-slate-950 border border-pink-500/40 rounded-2xl space-y-3 animate-fade-in shadow-xl flex-shrink-0">
+            <div className="p-3 bg-slate-950 border border-red-500/40 rounded-2xl space-y-3 animate-fade-in shadow-xl flex-shrink-0">
               <div className="flex items-center gap-3">
                 <img
                   src={urlPreview.thumbnail}
@@ -348,7 +350,7 @@ export const SongSearch = ({
                   <h4 className="text-xs font-bold text-white line-clamp-2" title={urlPreview.title}>
                     {urlPreview.title}
                   </h4>
-                  <p className="text-[10px] text-pink-400 font-medium mt-1 truncate">
+                  <p className="text-[10px] text-red-400 font-medium mt-1 truncate">
                     {urlPreview.authorName || "YouTube"}
                   </p>
                 </div>
@@ -359,7 +361,7 @@ export const SongSearch = ({
                 <button
                   type="button"
                   onClick={() => handleAdd(urlPreview)}
-                  className="flex items-center justify-center gap-1.5 bg-pink-500 hover:bg-pink-600 active:scale-95 text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg shadow-pink-500/25 transition"
+                  className="flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg shadow-red-500/25 transition"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Vào danh sách</span>

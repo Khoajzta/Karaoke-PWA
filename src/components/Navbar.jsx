@@ -65,7 +65,7 @@ export const Navbar = ({
 
         {/* Brand: Logo Only */}
         <div className="flex-shrink-0">
-            <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/25">
+            <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-red-500 to-rose-500 flex items-center justify-center text-white shadow-lg shadow-red-500/25">
             <Mic2 className="w-4 h-4" />
           </div>
         </div>
@@ -75,7 +75,7 @@ export const Navbar = ({
           <div className={`flex items-center gap-1 sm:gap-2 min-w-0 ${isHost ? "flex-none justify-start sm:flex-1 sm:justify-center" : "flex-1 justify-center"}`}>
             {/* Room code badge */}
             <div className={`${isHost ? "hidden sm:flex" : "flex"} h-9 items-center gap-0.5 sm:gap-1 bg-slate-800/80 border border-slate-700/80 px-1 sm:px-2 rounded-xl text-xs min-w-0`}>
-              <span className="font-mono font-bold text-pink-400 tracking-wider text-[11px] sm:text-xs truncate">#{roomId}</span>
+              <span className="font-mono font-bold text-red-400 tracking-wider text-[11px] sm:text-xs truncate">#{roomId}</span>
               <button
                 onClick={handleCopyRoom}
                 title="Sao chép link mời"
@@ -88,7 +88,7 @@ export const Navbar = ({
                 title="Mã QR phòng"
                 className="w-8 h-8 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center hover:text-white text-slate-400 transition flex-shrink-0 rounded-lg hover:bg-slate-700/70"
               >
-                <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-400" />
+                <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400" />
               </button>}
             </div>
 
@@ -99,8 +99,8 @@ export const Navbar = ({
                 title="Bấm để xem danh sách thành viên"
                 className="w-9 h-9 sm:w-auto sm:min-w-10 sm:h-9 flex items-center justify-center gap-1 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 px-1 sm:px-2 rounded-xl text-xs text-white transition active:scale-95 flex-shrink-0"
               >
-                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-400" />
-                <span className="font-bold text-pink-300 font-mono text-[11px] sm:text-xs">{memberCount}</span>
+                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400" />
+                <span className="font-bold text-red-300 font-mono text-[11px] sm:text-xs">{memberCount}</span>
               </button>
 
               {/* Dropdown members list */}
@@ -108,7 +108,7 @@ export const Navbar = ({
                 <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 w-56 sm:w-64 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-3 z-50">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                      <Users className="w-3.5 h-3.5 text-pink-400" />
+                      <Users className="w-3.5 h-3.5 text-red-400" />
                       <span>Thành viên ({memberCount})</span>
                     </div>
                     <button
@@ -173,7 +173,7 @@ export const Navbar = ({
                              value={m.hostVolume ?? 100}
                              onChange={(event) => onSetMemberVolume?.(m, event.target.value)}
                              aria-label={`Điều chỉnh âm lượng của ${m.name || "khách"}`}
-                             className="min-w-0 flex-1 accent-pink-500 h-1 cursor-pointer"
+                             className="min-w-0 flex-1 accent-red-500 h-1 cursor-pointer"
                            />
                          </label>
                        )}

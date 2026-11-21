@@ -54,7 +54,7 @@ const SortableQueueItem = ({
       style={style}
       className={`flex items-center gap-2 md:gap-2 p-1.5 md:p-2.5 rounded-xl border transition ${
         isDragging
-          ? "bg-slate-800 border-pink-500 shadow-2xl scale-[1.02]"
+          ? "bg-slate-800 border-red-500 shadow-2xl scale-[1.02]"
           : "bg-slate-950/70 border-slate-800/80 hover:border-slate-700"
       }`}
     >
@@ -63,7 +63,7 @@ const SortableQueueItem = ({
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-pink-400 p-1 md:p-1 touch-none"
+          className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-red-400 p-1 md:p-1 touch-none"
           title="Kéo thả để sắp xếp"
         >
           <GripVertical className="w-4 h-4" />
@@ -71,7 +71,7 @@ const SortableQueueItem = ({
       )}
 
       {/* Item Order Index */}
-      <span className="font-mono text-xs md:text-xs font-bold text-pink-400 w-5 text-center flex-shrink-0">
+      <span className="font-mono text-xs md:text-xs font-bold text-red-400 w-5 text-center flex-shrink-0">
         #{index + 1}
       </span>
 
@@ -151,9 +151,9 @@ export const QueueList = ({
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-2.5 md:p-5 flex flex-col h-full shadow-xl">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <ListMusic className="w-5 h-5 text-pink-400" />
+          <ListMusic className="w-5 h-5 text-red-400" />
           <h3 className="font-bold text-base md:text-sm text-white">Danh Sách Chờ</h3>
-          <span className="text-sm md:text-xs bg-pink-500/20 text-pink-300 font-bold px-2 py-0.5 rounded-full border border-pink-500/30">
+          <span className="text-sm md:text-xs bg-red-500/20 text-red-300 font-bold px-2 py-0.5 rounded-full border border-red-500/30">
             {queueItems.length}
           </span>
         </div>
@@ -164,7 +164,7 @@ export const QueueList = ({
 
       {queueItems.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-10 text-center text-slate-500 text-xs">
-          <Music className="w-10 h-10 mb-2 opacity-30 text-pink-400" />
+          <Music className="w-10 h-10 mb-2 opacity-30 text-red-400" />
           <p className="font-medium text-slate-400">Danh sách chờ đang trống</p>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Hãy tìm bài hát và bấm "Thêm vào danh sách"!

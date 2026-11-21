@@ -44,7 +44,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/40">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-pink-500/10 text-pink-400 rounded-lg">
+            <div className="p-2 bg-red-500/10 text-red-400 rounded-lg">
               <Database className="w-5 h-5" />
             </div>
             <div>
@@ -63,7 +63,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
         <form onSubmit={handleSave} className="p-5 overflow-y-auto space-y-4 text-sm flex-1">
           {/* YouTube API Key */}
           <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
-            <div className="flex items-center gap-2 mb-2 text-pink-400 font-medium">
+            <div className="flex items-center gap-2 mb-2 text-red-400 font-medium">
               <Key className="w-4 h-4" />
               <span>YouTube Data API v3 Key (Tùy chọn)</span>
             </div>
@@ -75,7 +75,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               placeholder="AIzaSy..."
               value={ytKey}
               onChange={(e) => setYtKey(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 text-xs"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-red-500 text-xs"
             />
           </div>
 
@@ -86,7 +86,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 Firebase Realtime Database Config
               </span>
-              <span className="text-[11px] text-pink-400">Bắt buộc để đồng bộ</span>
+              <span className="text-[11px] text-red-400">Bắt buộc để đồng bộ</span>
             </div>
 
             <div>
@@ -97,7 +97,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                 value={fbConfig.databaseURL}
                 onChange={(e) => setFbConfig({ ...fbConfig, databaseURL: e.target.value })}
                 required
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-pink-500 text-xs font-mono"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 text-xs font-mono"
               />
             </div>
 
@@ -110,7 +110,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                   value={fbConfig.apiKey}
                   onChange={(e) => setFbConfig({ ...fbConfig, apiKey: e.target.value })}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-pink-500 text-xs font-mono"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 text-xs font-mono"
                 />
               </div>
 
@@ -122,7 +122,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                   value={fbConfig.projectId}
                   onChange={(e) => setFbConfig({ ...fbConfig, projectId: e.target.value })}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-pink-500 text-xs font-mono"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 text-xs font-mono"
                 />
               </div>
             </div>
@@ -135,7 +135,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                   placeholder="your-app.firebaseapp.com"
                   value={fbConfig.authDomain}
                   onChange={(e) => setFbConfig({ ...fbConfig, authDomain: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-pink-500 text-xs font-mono"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 text-xs font-mono"
                 />
               </div>
 
@@ -146,7 +146,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
                   placeholder="1:123456789:web:abcdef..."
                   value={fbConfig.appId}
                   onChange={(e) => setFbConfig({ ...fbConfig, appId: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-pink-500 text-xs font-mono"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-red-500 text-xs font-mono"
                 />
               </div>
             </div>
@@ -155,7 +155,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-pink-500/25 transition active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-medium py-2.5 rounded-xl shadow-lg shadow-red-500/25 transition active:scale-[0.98]"
             >
               {saved ? (
                 <>

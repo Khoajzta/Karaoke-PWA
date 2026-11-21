@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Search, 
   Link as LinkIcon, 
@@ -11,8 +11,8 @@ import {
   ClipboardPaste,
   ArrowRight
 } from "lucide-react";
-import { extractYouTubeId, fetchYouTubeOEmbed, searchYouTubeAPI } from "../utils/youtube";
-import { useAuth } from "../context/AuthContext";
+import { extractYouTubeId, fetchYouTubeOEmbed, searchYouTubeAPI } from "../../../utils/youtube";
+import { useAuth } from "../../../context/AuthContext";
 
 export const SongSearch = ({
   isHost,
@@ -24,6 +24,7 @@ export const SongSearch = ({
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url'
   const [searchQuery, setSearchQuery] = useState("");
+  const [querySuggestions, setQuerySuggestions] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -36,10 +37,35 @@ export const SongSearch = ({
 
   const [addedId, setAddedId] = useState(null);
 
-  // Search or detect pasted URL in search bar
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
+  useEffect(() => {
     const query = searchQuery.trim();
+    if (query.length < 2 || extractYouTubeId(query)) {
+      setQuerySuggestions([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const url = new URL("https://suggestqueries.google.com/complete/search");
+        url.searchParams.set("client", "firefox");
+        url.searchParams.set("ds", "yt");
+        url.searchParams.set("hl", "vi");
+        url.searchParams.set("q", query);
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error("Autocomplete request failed");
+        const data = await response.json();
+        setQuerySuggestions(Array.isArray(data?.[1]) ? data[1].slice(0, 8) : []);
+      } catch (error) {
+        if (error.name !== "AbortError") setQuerySuggestions([]);
+      }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [searchQuery]);
+
+  // Search or detect pasted URL in search bar
+  const handleSearch = async (e, queryOverride) => {
+    if (e) e.preventDefault();
+    const query = (queryOverride ?? searchQuery).trim();
     if (!query) return;
 
     // Check if query is actually a YouTube link!
@@ -81,6 +107,8 @@ export const SongSearch = ({
       setIsSearching(false);
     }
   };
+
+  const suggestions = querySuggestions.map((title) => ({ title, videoId: `query-${title}` }));
 
   // Resolve pasted URL
   const resolveUrl = async (rawUrl) => {
@@ -200,7 +228,7 @@ export const SongSearch = ({
       {/* Tab 1: Search */}
       {activeTab === "search" && (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          <form onSubmit={handleSearch} className="mb-2.5 flex-shrink-0">
+          <form onSubmit={handleSearch} className="mb-2.5 flex-shrink-0 relative">
             <div className="relative">
               <input
                 type="text"
@@ -218,6 +246,18 @@ export const SongSearch = ({
               </button>
             </div>
           </form>
+
+          {suggestions.length > 0 && !isSearching && (
+            <div className="-mt-2 mb-2 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden flex-shrink-0">
+              {suggestions.map((song) => (
+                <button key={song.videoId} type="button" onClick={() => { setSearchQuery(song.title); handleSearch(null, song.title); }} className="w-full flex items-center gap-2 p-2 text-left hover:bg-slate-800">
+                  <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <span className="text-xs text-white truncate">{song.title}</span>
+                  <span className="ml-auto text-[10px] text-slate-500">Gần đây</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {searchError && (
             <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 mb-2 flex items-start gap-2 flex-shrink-0">

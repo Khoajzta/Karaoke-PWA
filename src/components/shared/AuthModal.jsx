@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, User, LogIn, AlertCircle, ShieldAlert, Sparkles, PlusCircle } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đăng nhập" }) => {
   const { loginWithGoogle, loginAsGuest, isConfigured } = useAuth();

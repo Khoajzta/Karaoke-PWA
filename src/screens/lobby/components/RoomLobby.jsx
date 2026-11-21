@@ -13,8 +13,8 @@ import {
   Copy,
   Check
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { rtdb, ref, set, get, serverTimestamp } from "../firebase";
+import { useAuth } from "../../../context/AuthContext";
+import { rtdb, ref, set, get, serverTimestamp } from "../../../firebase";
 
 export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreateRoom, onClearPendingCreate }) => {
   const { user, isConfigured, loginAsGuest } = useAuth();

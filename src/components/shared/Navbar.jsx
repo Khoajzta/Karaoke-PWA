@@ -13,8 +13,8 @@ import {
   Smartphone,
   Users
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { subscribeServerTimeOffset } from "../firebase";
+import { useAuth } from "../../context/AuthContext";
+import { subscribeServerTimeOffset } from "../../firebase";
 
 export const Navbar = ({ 
   roomId, 

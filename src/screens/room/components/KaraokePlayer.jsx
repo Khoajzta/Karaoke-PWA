@@ -19,8 +19,8 @@ import {
   Search,
   Plus
 } from "lucide-react";
-import { getServerTime, getServerTimeOffset, rtdb, ref, update } from "../firebase";
-import { getFastestPlaybackTarget } from "../utils/playbackSync";
+import { getServerTime, getServerTimeOffset, rtdb, ref, update } from "../../../firebase";
+import { getFastestPlaybackTarget } from "../../../utils/playbackSync";
 
 export const KaraokePlayer = ({
   roomId,

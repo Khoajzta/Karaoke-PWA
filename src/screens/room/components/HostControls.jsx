@@ -13,7 +13,7 @@ import {
   Minimize2,
   Smartphone
 } from "lucide-react";
-import { rtdb, ref, update, getServerTime } from "../firebase";
+import { rtdb, ref, update, getServerTime } from "../../../firebase";
 
 export const HostControls = ({
   roomId,

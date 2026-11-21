@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, Key, Database, Sparkles, Check } from "lucide-react";
-import { getStoredFirebaseConfig, saveFirebaseConfig } from "../firebase";
+import { getStoredFirebaseConfig, saveFirebaseConfig } from "../../firebase";
 
 export const ConfigModal = ({ isOpen, onClose }) => {
   const currentFb = getStoredFirebaseConfig();

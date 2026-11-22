@@ -503,7 +503,7 @@ export function App() {
             videoId: nextSong.videoId,
             title: nextSong.title,
             state: "playing",
-            anchorServerTime: getServerTime() + 3000,
+            anchorServerTime: getServerTime() + (endedVideoId ? 0 : 3000),
             pausedAt: 0
           }
         };

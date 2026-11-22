@@ -499,7 +499,9 @@ export const KaraokePlayer = ({
   const handleEnd = () => {
     if (onSongEnd && playback?.videoId) {
       const endedAt = safeCall((player) => player.getCurrentTime());
-      safeCall((player) => player.pauseVideo());
+      // The player has already ended naturally. Pausing again on a guest can
+      // race with the next video loading and briefly stop that new video.
+      if (isHost) safeCall((player) => player.pauseVideo());
       onSongEnd(
         typeof endedAt === "number" && Number.isFinite(endedAt) ? endedAt : undefined,
         playback.videoId

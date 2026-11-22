@@ -175,6 +175,8 @@ export const KaraokePlayer = ({
   const titleToDisplay = playback?.state === "playing"
     ? (isPreparingCurrentSong ? playback?.title : secondsRemaining <= 10 ? nextSongTitle : "")
     : playback?.title;
+  const isUpcomingSongNotice = playback?.state === "playing" && !isPreparingCurrentSong &&
+    secondsRemaining <= 10 && Boolean(nextSongTitle);
 
   // Keep track of playback state
   useEffect(() => {
@@ -684,8 +686,16 @@ export const KaraokePlayer = ({
           {isFullscreen && (
             <div className="absolute bottom-4 left-4 right-4 z-[110] flex items-center justify-between gap-3 pointer-events-none">
               <div className="bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 max-w-[50%] sm:max-w-md shadow-2xl">
-                {titleToDisplay && <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{titleToDisplay}</h3>}
+                {titleToDisplay && !isUpcomingSongNotice && <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{titleToDisplay}</h3>}
                 <p className="text-[10px] sm:text-[11px] text-red-400 font-semibold mt-0.5">🎤 Karaoke Realtime Sync</p>
+              </div>
+            </div>
+          )}
+          {isFullscreen && isUpcomingSongNotice && (
+            <div className="absolute inset-x-4 bottom-[18%] z-[110] flex justify-center pointer-events-none">
+              <div className="max-w-[90vw] rounded-2xl border border-amber-300/70 bg-black/85 px-6 py-4 text-center shadow-2xl backdrop-blur-md sm:px-10 sm:py-6">
+                <p className="mb-1 text-sm font-extrabold uppercase tracking-[0.2em] text-amber-300 sm:text-base">Bài tiếp theo</p>
+                <h2 className="text-2xl font-black leading-tight text-white sm:text-4xl">{nextSongTitle}</h2>
               </div>
             </div>
           )}

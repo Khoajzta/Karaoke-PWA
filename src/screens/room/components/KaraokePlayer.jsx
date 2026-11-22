@@ -50,9 +50,43 @@ export const KaraokePlayer = ({
 
   // Fullscreen & Orientation state for Member
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChooseSongPrompt, setShowChooseSongPrompt] = useState(false);
+  const promptRef = useRef(null);
   const [isRotated, setIsRotated] = useState(false);
   const [autoFullscreenEnabled, setAutoFullscreenEnabled] = useState(true);
   const lastVideoIdRef = useRef(playback?.videoId);
+
+  useEffect(() => {
+    setShowChooseSongPrompt(false);
+  }, [playback?.videoId]);
+
+  useEffect(() => {
+    if (!nextSongTitle) return;
+    setShowChooseSongPrompt(false);
+  }, [nextSongTitle]);
+
+  useEffect(() => {
+    if (!isFullscreen || !showChooseSongPrompt || playback?.state === "playing" || nextSongTitle || !promptRef.current) return;
+    const node = promptRef.current;
+    let x = Math.random() * Math.max(1, window.innerWidth - node.offsetWidth);
+    let y = Math.random() * Math.max(1, window.innerHeight - node.offsetHeight);
+    let vx = (Math.random() < 0.5 ? -1 : 1) * (2.5 + Math.random() * 2);
+    let vy = (Math.random() < 0.5 ? -1 : 1) * (2.5 + Math.random() * 2);
+    let frame;
+    const move = () => {
+      const maxX = Math.max(0, window.innerWidth - node.offsetWidth);
+      const maxY = Math.max(0, window.innerHeight - node.offsetHeight);
+      x += vx;
+      y += vy;
+      if (x <= 0 || x >= maxX) { vx *= -1; x = Math.max(0, Math.min(maxX, x)); vy += (Math.random() - 0.5) * 0.8; }
+      if (y <= 0 || y >= maxY) { vy *= -1; y = Math.max(0, Math.min(maxY, y)); vx += (Math.random() - 0.5) * 0.8; }
+      node.style.transform = `translate(${x}px, ${y}px)`;
+      frame = requestAnimationFrame(move);
+    };
+    node.style.transform = `translate(${x}px, ${y}px)`;
+    frame = requestAnimationFrame(move);
+    return () => cancelAnimationFrame(frame);
+  }, [isFullscreen, showChooseSongPrompt, playback?.state, nextSongTitle]);
 
   // Notify parent component about fullscreen state to hide header
   useEffect(() => {
@@ -177,6 +211,7 @@ export const KaraokePlayer = ({
     : playback?.title;
   const isUpcomingSongNotice = playback?.state === "playing" && !isPreparingCurrentSong &&
     secondsRemaining <= 10 && Boolean(nextSongTitle);
+  const shouldShowChooseSongPrompt = showChooseSongPrompt && playback?.state !== "playing" && !nextSongTitle;
 
   // Keep track of playback state
   useEffect(() => {
@@ -497,6 +532,7 @@ export const KaraokePlayer = ({
   // Handle Video Ended
   const handleEnd = () => {
     if (onSongEnd && playback?.videoId) {
+      setShowChooseSongPrompt(true);
       const endedAt = safeCall((player) => player.getCurrentTime());
       // The player has already ended naturally. Pausing again on a guest can
       // race with the next video loading and briefly stop that new video.
@@ -609,6 +645,17 @@ export const KaraokePlayer = ({
             iframeClassName="w-full h-full"
           />
 
+          {/* Members can watch but only the Host may control YouTube playback. */}
+          {!isHost && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 z-20 cursor-default"
+              onClick={(event) => event.preventDefault()}
+              onDoubleClick={(event) => event.preventDefault()}
+              onContextMenu={(event) => event.preventDefault()}
+            />
+          )}
+
           {/* Sync status overlay badge (hidden in fullscreen for cleaner view) */}
           {!isHost && !isFullscreen && (
             <div className="absolute top-3 left-3 pointer-events-none flex items-center gap-1.5 px-3 py-1.5 bg-black/80 backdrop-blur-md rounded-full border border-white/20 text-xs text-white z-30 shadow-xl">
@@ -698,6 +745,23 @@ export const KaraokePlayer = ({
                 <h2 className="text-2xl font-black leading-tight text-white sm:text-4xl">{nextSongTitle}</h2>
               </div>
             </div>
+          )}
+          {isFullscreen && shouldShowChooseSongPrompt && (
+            <>
+              <div className="absolute inset-0 z-[114] bg-black pointer-events-none" />
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                title="Thu nhỏ màn hình"
+                aria-label="Thu nhỏ màn hình"
+                className="absolute bottom-4 right-4 z-[120] flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/80 text-white shadow-xl transition hover:bg-slate-800 active:scale-95"
+              >
+                <Minimize2 className="h-6 w-6" />
+              </button>
+              <div ref={promptRef} className="absolute left-0 top-0 z-[115] pointer-events-none rounded-2xl border-2 border-amber-300 bg-black/90 px-6 py-4 text-center text-2xl font-black text-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.7)] sm:px-10 sm:py-6 sm:text-4xl">
+                Vui lòng chọn bài
+              </div>
+            </>
           )}
         </div>
       </div>

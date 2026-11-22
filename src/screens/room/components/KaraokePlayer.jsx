@@ -38,16 +38,15 @@ export const KaraokePlayer = ({
   const [isMuted, setIsMuted] = useState(false); // Mặc định BẬT tiếng, member tự quyết
   const [currentDiff, setCurrentDiff] = useState(0);
   const [syncStatus, setSyncStatus] = useState("Đang kết nối...");
-  const [playbackRate, setPlaybackRate] = useState(1.0);
   const [secondsRemaining, setSecondsRemaining] = useState(Infinity);
-  const isAdjustingRateRef = useRef(false);
-  const rateAdjustTimeoutRef = useRef(null);
   const peerPositionsRef = useRef(peerPositions);
   const lastSeekTriggerRef = useRef(playback?.seekTrigger);
   peerPositionsRef.current = peerPositions;
   const lastStateRef = useRef(playback?.state || "paused");
   const playbackStartTimerRef = useRef(null);
   const playbackRecoveryTimerRef = useRef(null);
+  const visibilityRecoveryTimerRef = useRef(null);
+  const lastSyncSeekAtRef = useRef(0);
 
   // Fullscreen & Orientation state for Member
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -119,22 +118,36 @@ export const KaraokePlayer = ({
   useEffect(() => () => {
     if (playbackStartTimerRef.current) clearTimeout(playbackStartTimerRef.current);
     if (playbackRecoveryTimerRef.current) clearTimeout(playbackRecoveryTimerRef.current);
+    if (visibilityRecoveryTimerRef.current) clearTimeout(visibilityRecoveryTimerRef.current);
   }, []);
 
-  // Mobile browsers may suspend the YouTube iframe while another app or screen
-  // is active. Re-apply the room's server-time position when this player returns.
+  // Browsers may suspend or pause the YouTube iframe while this tab is hidden.
+  // Re-apply the shared position after the iframe has had time to resume.
   useEffect(() => {
-    if (isHost) return;
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && playback?.state === "playing") {
+      if (document.visibilityState !== "visible" || playback?.state !== "playing") return;
+
+      if (visibilityRecoveryTimerRef.current) clearTimeout(visibilityRecoveryTimerRef.current);
+      visibilityRecoveryTimerRef.current = setTimeout(() => {
+        visibilityRecoveryTimerRef.current = null;
+        lastSyncSeekAtRef.current = Date.now();
         applySharedPlayback();
-      }
+        visibilityRecoveryTimerRef.current = setTimeout(() => {
+          visibilityRecoveryTimerRef.current = null;
+          safeCall((player) => {
+            if (player.getPlayerState() !== 1) applySharedPlayback();
+          });
+        }, 900);
+      }, 250);
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isHost, playback?.state, playback?.anchorServerTime, playback?.videoId, applySharedPlayback]);
+    window.addEventListener("pageshow", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handleVisibilityChange);
+    };
+  }, [playback?.state, playback?.anchorServerTime, playback?.videoId, applySharedPlayback, safeCall]);
 
   useEffect(() => {
     if (playback?.state !== "playing" || !playerReady) {
@@ -429,6 +442,8 @@ export const KaraokePlayer = ({
     if (!playerReady) return;
 
     const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+
       safeCall((player) => {
         if (playback?.state !== "playing" || !playback.anchorServerTime) {
           return;
@@ -458,29 +473,14 @@ export const KaraokePlayer = ({
         const diff = targetTime - currentTime;
         setCurrentDiff(diff);
 
-        // Never seek backwards; wait for other devices to catch up instead.
-        if (diff > 0.4) {
+        // Avoid repeated seeks for small drift: YouTube seeks can visibly stutter,
+        // especially immediately after a background tab becomes active again.
+        // Correct larger gaps once, then allow the player time to settle.
+        const now = Date.now();
+        if (diff > 1.5 && now - lastSyncSeekAtRef.current > 4000) {
           player.seekTo(targetTime, true);
+          lastSyncSeekAtRef.current = now;
           setSyncStatus(`Bắt kịp thiết bị nhanh nhất (+${diff.toFixed(2)}s)`);
-        } 
-        // Close small positive gaps by briefly increasing playback speed.
-        else if (diff > 0.1) {
-          if (!isAdjustingRateRef.current) {
-            isAdjustingRateRef.current = true;
-            const rate = 1.05;
-            player.setPlaybackRate(rate);
-            setPlaybackRate(rate);
-            setSyncStatus(`Lệch nhẹ (${(diff * 1000).toFixed(0)}ms) -> Chỉnh tốc độ ${rate}x`);
-
-            rateAdjustTimeoutRef.current = setTimeout(() => {
-              safeCall((p) => {
-                p.setPlaybackRate(1.0);
-                setPlaybackRate(1.0);
-                isAdjustingRateRef.current = false;
-                setSyncStatus("Đã theo kịp thiết bị nhanh nhất");
-              });
-            }, 1500);
-          }
         } else {
           setSyncStatus("Đang theo thiết bị nhanh nhất");
         }
@@ -489,9 +489,6 @@ export const KaraokePlayer = ({
 
     return () => {
       clearInterval(interval);
-      if (rateAdjustTimeoutRef.current) clearTimeout(rateAdjustTimeoutRef.current);
-      safeCall((player) => player.setPlaybackRate(1.0));
-      isAdjustingRateRef.current = false;
     };
   }, [playerReady, playback?.state, playback?.anchorServerTime, playback?.videoId, playback?.seekTrigger, safeCall]);
 

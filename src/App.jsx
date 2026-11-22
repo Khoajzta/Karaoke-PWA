@@ -475,30 +475,57 @@ export function App() {
     }
   };
 
-  // Host: Next song (take top of queue)
-  const handleNextSong = async (endedAt) => {
-    if (!isHost || !currentRoomId) return;
+  // Advance atomically so a guest can keep the queue moving while the host is
+  // in the background. The ended video ID prevents multiple guests from
+  // consuming multiple queue items for the same end event.
+  const handleNextSong = async (endedAt, endedVideoId) => {
+    if ((!isHost && !endedVideoId) || !currentRoomId) return;
 
-    if (queueItems.length > 0) {
-      const nextSong = queueItems[0];
-      const startAtServerTime = getServerTime() + 3000;
+    const expectedVideoId = endedVideoId || (isHost ? roomData?.playback?.videoId : null);
+    const roomRef = ref(rtdb, `rooms/${currentRoomId}`);
+    const result = await runTransaction(roomRef, (room) => {
+      const currentPlayback = room?.playback;
+      if (!currentPlayback) return;
+      if (expectedVideoId && currentPlayback.videoId !== expectedVideoId) return;
+      if (endedVideoId && currentPlayback.state !== "playing") return;
 
-      await update(ref(rtdb, `rooms/${currentRoomId}/playback`), {
-        videoId: nextSong.videoId,
-        title: nextSong.title,
-        state: "playing",
-        anchorServerTime: startAtServerTime,
-        pausedAt: 0
-      });
+      const nextEntry = Object.entries(room.queue || {})
+        .sort(([, a], [, b]) => (a?.order || 0) - (b?.order || 0))[0];
 
-      // Remove from queue
-      await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${nextSong.id}`));
-    } else {
-      // Pause if no more songs
-      await update(ref(rtdb, `rooms/${currentRoomId}/playback`), {
-        state: "paused",
-        pausedAt: typeof endedAt === "number" ? endedAt : roomData?.playback?.pausedAt || 0
-      });
+      if (nextEntry) {
+        const [nextId, nextSong] = nextEntry;
+        const queue = { ...(room.queue || {}) };
+        delete queue[nextId];
+        const nextRoom = {
+          ...room,
+          playback: {
+            ...currentPlayback,
+            videoId: nextSong.videoId,
+            title: nextSong.title,
+            state: "playing",
+            anchorServerTime: getServerTime() + 3000,
+            pausedAt: 0
+          }
+        };
+        if (Object.keys(queue).length) nextRoom.queue = queue;
+        else delete nextRoom.queue;
+        return nextRoom;
+      }
+
+      return {
+        ...room,
+        playback: {
+          ...currentPlayback,
+          state: "paused",
+          pausedAt: typeof endedAt === "number"
+            ? endedAt
+            : currentPlayback.pausedAt || 0
+        }
+      };
+    });
+
+    if (!result.committed && !isHost) {
+      console.warn("Another room member already advanced the playback.");
     }
   };
 

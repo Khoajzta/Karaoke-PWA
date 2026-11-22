@@ -50,6 +50,7 @@ export const KaraokePlayer = ({
   peerPositionsRef.current = peerPositions;
   const lastStateRef = useRef(playback?.state || "paused");
   const playbackStartTimerRef = useRef(null);
+  const playbackRecoveryTimerRef = useRef(null);
 
   // Fullscreen & Orientation state for Member
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -120,7 +121,23 @@ export const KaraokePlayer = ({
 
   useEffect(() => () => {
     if (playbackStartTimerRef.current) clearTimeout(playbackStartTimerRef.current);
+    if (playbackRecoveryTimerRef.current) clearTimeout(playbackRecoveryTimerRef.current);
   }, []);
+
+  // Mobile browsers may suspend the YouTube iframe while another app or screen
+  // is active. Re-apply the room's server-time position when this player returns.
+  useEffect(() => {
+    if (isHost) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && playback?.state === "playing") {
+        applySharedPlayback();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isHost, playback?.state, playback?.anchorServerTime, playback?.videoId, applySharedPlayback]);
 
   useEffect(() => {
     if (playback?.state !== "playing" || !playerReady) {
@@ -497,11 +514,48 @@ export const KaraokePlayer = ({
 
   // Handle Video Ended
   const handleEnd = () => {
-    if (isHost && onSongEnd) {
+    if (onSongEnd && playback?.videoId) {
       const endedAt = safeCall((player) => player.getCurrentTime());
       safeCall((player) => player.pauseVideo());
-      onSongEnd(typeof endedAt === "number" && Number.isFinite(endedAt) ? endedAt : undefined);
+      onSongEnd(
+        typeof endedAt === "number" && Number.isFinite(endedAt) ? endedAt : undefined,
+        playback.videoId
+      );
     }
+  };
+
+  // A new video can load after the room update has already triggered the first
+  // play/seek calls. If YouTube reports it paused or cued, retry against the
+  // current shared anchor once the iframe has had time to load the new video.
+  const handlePlayerStateChange = (event) => {
+    if (isHost || playback?.state !== "playing") return;
+
+    const playerState = event.data;
+    const isNotPlaying = playerState === -1 || playerState === 2 || playerState === 5;
+    if (!isNotPlaying) {
+      if (playbackRecoveryTimerRef.current) {
+        clearTimeout(playbackRecoveryTimerRef.current);
+        playbackRecoveryTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (playbackRecoveryTimerRef.current) clearTimeout(playbackRecoveryTimerRef.current);
+    const expectedVideoId = playback.videoId;
+    playbackRecoveryTimerRef.current = setTimeout(() => {
+      playbackRecoveryTimerRef.current = null;
+      if (playback?.state !== "playing" || playback?.videoId !== expectedVideoId) return;
+
+      safeCall((player) => {
+        if (player.getPlayerState() === 1) return;
+        const anchor = playback.anchorServerTime;
+        const target = Number.isFinite(anchor)
+          ? Math.max(0, (getServerTime() - anchor) / 1000)
+          : 0;
+        player.seekTo(target, true);
+        player.playVideo();
+      });
+    }, 900);
   };
 
   // YouTube Player Options
@@ -562,6 +616,7 @@ export const KaraokePlayer = ({
             opts={playerOpts}
             onReady={handleReady}
             onEnd={handleEnd}
+            onStateChange={handlePlayerStateChange}
             onError={(e) => {
               console.warn("YouTube Player error:", e);
               setSyncStatus("Lỗi tải video YouTube (vui lòng chọn bài khác)");

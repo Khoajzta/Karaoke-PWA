@@ -15,9 +15,7 @@ import {
   Maximize2,
   Minimize2,
   RotateCw,
-  Expand,
-  Search,
-  Plus
+  Expand
 } from "lucide-react";
 import { getServerTime, getServerTimeOffset, rtdb, ref, update } from "../../../firebase";
 import { getFastestPlaybackTarget } from "../../../utils/playbackSync";
@@ -30,7 +28,6 @@ export const KaraokePlayer = ({
   playback,
   nextSongTitle,
   onSongEnd,
-  onSwitchToSearch,
   onFullscreenChange,
   externalPlayerRef
 }) => {
@@ -292,20 +289,6 @@ export const KaraokePlayer = ({
           document.documentElement.requestFullscreen().catch(() => {});
         }
       } catch (e) {}
-    }
-  };
-
-  // Member exits fullscreen and immediately jumps to Song Search
-  const handleExitFullscreenToSearch = () => {
-    setIsFullscreen(false);
-    setIsRotated(false);
-    try {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      }
-    } catch (e) {}
-    if (onSwitchToSearch) {
-      onSwitchToSearch();
     }
   };
 
@@ -633,32 +616,8 @@ export const KaraokePlayer = ({
             </div>
           )}
 
-          {/* Dedicated Top-Left Floating Minimize Button on Fullscreen */}
-          {isFullscreen && (
-            <button
-              onClick={toggleFullscreen}
-              title="Bấm để thu nhỏ màn hình"
-              className="absolute top-4 left-4 z-[110] flex items-center gap-2 px-4 py-2 rounded-full bg-black/90 hover:bg-black text-white text-xs font-bold border-2 border-red-500 shadow-2xl shadow-red-500/50 transition active:scale-95"
-            >
-              <Minimize2 className="w-4 h-4 text-red-400" />
-              <span>Thu nhỏ</span>
-            </button>
-          )}
-
           {/* Top Right Floating Controls in Fullscreen or Normal mode */}
           <div className="absolute top-3 right-3 z-[110] flex items-center gap-2">
-            {/* If in fullscreen: Quick button to Exit Fullscreen and Add/Search songs */}
-            {isFullscreen && !isHost && (
-              <button
-                onClick={handleExitFullscreenToSearch}
-                title="Thu nhỏ để tìm và thêm bài hát mới vào hàng đợi"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white text-xs font-bold shadow-xl shadow-red-500/30 transition active:scale-95 border border-red-400/30"
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>Chọn bài</span>
-              </button>
-            )}
-
             {/* If in fullscreen on portrait phone: Button to Rotate screen */}
             {isFullscreen && (
               <button
@@ -686,7 +645,7 @@ export const KaraokePlayer = ({
             {/* Fullscreen / Minimize toggle button */}
             <button
               onClick={toggleFullscreen}
-              title={isFullscreen ? "Thu nhỏ màn hình (Xem hàng chờ & thêm bài)" : "Phóng to toàn màn hình"}
+              title={isFullscreen ? "Thu nhỏ màn hình" : "Phóng to toàn màn hình"}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
                 isFullscreen
                   ? "bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700"
@@ -722,32 +681,12 @@ export const KaraokePlayer = ({
             )}
           </div>
 
-          {/* Fullscreen Bottom Title Banner & Quick Add Song Button */}
+          {/* Fullscreen song title banner */}
           {isFullscreen && (
             <div className="absolute bottom-4 left-4 right-4 z-[110] flex items-center justify-between gap-3 pointer-events-none">
               <div className="bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 max-w-[50%] sm:max-w-md shadow-2xl">
                 {titleToDisplay && <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{titleToDisplay}</h3>}
                 <p className="text-[10px] sm:text-[11px] text-red-400 font-semibold mt-0.5">🎤 Karaoke Realtime Sync</p>
-              </div>
-
-              <div className="pointer-events-auto flex items-center gap-2">
-                <button
-                  onClick={toggleFullscreen}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-900/90 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-xl border border-slate-700 transition active:scale-95 text-xs"
-                >
-                  <Minimize2 className="w-4 h-4 text-red-400" />
-                  <span>Thu nhỏ</span>
-                </button>
-
-                {!isHost && (
-                  <button
-                    onClick={handleExitFullscreenToSearch}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold rounded-2xl shadow-2xl shadow-red-500/40 transition active:scale-95 text-xs border border-red-400/40"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Thêm bài</span>
-                  </button>
-                )}
               </div>
             </div>
           )}

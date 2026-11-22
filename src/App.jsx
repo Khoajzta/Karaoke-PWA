@@ -876,12 +876,6 @@ export function App() {
                         nextSongTitle={queueItems[0]?.title}
                         onSongEnd={handleNextSong}
                         onFullscreenChange={setIsPlayerFullscreen}
-                        onSwitchToSearch={() => {
-                          setMobileTab("search");
-                          setTimeout(() => {
-                            window.scrollTo({ top: 320, behavior: "smooth" });
-                          }, 100);
-                        }}
                       />
                     </ErrorBoundary>
 

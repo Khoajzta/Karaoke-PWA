@@ -121,6 +121,56 @@ export function App() {
     }
   }, [user, isConfigured, authLoading]);
 
+  // Remember an anonymous guest's room on this device so a refresh can restore
+  // the same Firebase anonymous session directly into that room.
+  useEffect(() => {
+    if (authLoading || !isConfigured || !user) return;
+
+    let rememberedGuestRoom;
+    try {
+      rememberedGuestRoom = JSON.parse(localStorage.getItem("karaoke_guest_room") || "null");
+    } catch (error) {
+      console.warn("Could not read the remembered guest room:", error);
+      localStorage.removeItem("karaoke_guest_room");
+      return;
+    }
+
+    if (!rememberedGuestRoom) return;
+    if (!user.isAnonymous || rememberedGuestRoom.uid !== user.uid) {
+      localStorage.removeItem("karaoke_guest_room");
+      return;
+    }
+
+    const roomId = rememberedGuestRoom.roomId?.trim().toUpperCase();
+    if (!roomId || !rememberedGuestRoom.guestName?.trim()) {
+      localStorage.removeItem("karaoke_guest_room");
+      return;
+    }
+
+    const requestedRoom = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase();
+    if (requestedRoom && requestedRoom !== roomId) return;
+
+    let cancelled = false;
+    get(ref(rtdb, `rooms/${roomId}`))
+      .then((snapshot) => {
+        if (cancelled) return;
+        if (!snapshot.exists() || snapshot.val()?.members?._state === "deleting") {
+          localStorage.removeItem("karaoke_guest_room");
+          return;
+        }
+
+        setGuestRoomName(rememberedGuestRoom.guestName.trim());
+        setCurrentRoomId(roomId);
+      })
+      .catch((error) => {
+        console.warn("Could not restore the remembered guest room:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isConfigured, authLoading]);
+
   // Determine if current user is Host
   const isHost = useMemo(() => {
     return isRoomHost({
@@ -176,6 +226,14 @@ export function App() {
           setCurrentRoomId(null);
           setCreatedRoomId(null);
           setGuestRoomName("");
+          try {
+            const rememberedGuestRoom = JSON.parse(localStorage.getItem("karaoke_guest_room") || "null");
+            if (rememberedGuestRoom?.roomId === currentRoomId) {
+              localStorage.removeItem("karaoke_guest_room");
+            }
+          } catch (error) {
+            localStorage.removeItem("karaoke_guest_room");
+          }
           window.history.pushState({ path: window.location.pathname }, "", window.location.pathname);
         }
       },
@@ -292,7 +350,19 @@ export function App() {
 
   // Handle Join Room from Lobby
   const handleJoinRoom = (code, asCreator = false, roomGuestName = "") => {
-    setGuestRoomName(roomGuestName.trim());
+    const trimmedGuestName = roomGuestName.trim();
+    setGuestRoomName(trimmedGuestName);
+    if (user?.isAnonymous && trimmedGuestName) {
+      try {
+        localStorage.setItem("karaoke_guest_room", JSON.stringify({
+          roomId: code,
+          guestName: trimmedGuestName,
+          uid: user.uid
+        }));
+      } catch (error) {
+        console.warn("Could not remember the guest room:", error);
+      }
+    }
     if (asCreator) {
       setCreatedRoomId(code);
       try {
@@ -426,6 +496,10 @@ export function App() {
     setRoomError(null);
     setGuestRoomName("");
     try {
+      const rememberedGuestRoom = JSON.parse(localStorage.getItem("karaoke_guest_room") || "null");
+      if (rememberedGuestRoom?.roomId === targetRoomId) {
+        localStorage.removeItem("karaoke_guest_room");
+      }
       if (localStorage.getItem("karaoke_host_room_id") === targetRoomId) {
         localStorage.removeItem("karaoke_host_room_id");
       }

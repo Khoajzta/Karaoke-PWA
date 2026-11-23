@@ -10,10 +10,13 @@ import {
   Check,
   ClipboardPaste,
   ArrowRight,
-  Mic
+  Mic,
+  Heart,
+  ChevronLeft
 } from "lucide-react";
 import { extractYouTubeId, fetchYouTubeOEmbed, searchYouTubeAPI } from "../../../utils/youtube";
 import { useAuth } from "../../../context/AuthContext";
+import { useLocalFavorites } from "../../../hooks/useLocalFavorites";
 
 const fetchYouTubeSuggestions = (query, signal) => new Promise((resolve, reject) => {
   const callbackName = `karaokeSuggestions_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -63,7 +66,8 @@ export const SongSearch = ({
   onBack
 }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url'
+  const { favorites, isFavorite, toggleFavorite } = useLocalFavorites(user?.uid);
+  const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url' | 'favorites'
   const [searchQuery, setSearchQuery] = useState("");
   const [querySuggestions, setQuerySuggestions] = useState([]);
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
@@ -325,7 +329,17 @@ export const SongSearch = ({
 
   return (
     <div className={`${onBack ? "mobile-search-screen" : ""} bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-5 flex flex-col h-full shadow-xl overflow-hidden`}>
-      {onBack && <button onClick={onBack} className="mobile-search-back hidden items-center gap-2 text-white font-semibold py-2"><span aria-hidden="true">←</span> Tìm kiếm</button>}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Quay lại"
+          className="mobile-search-back hidden min-h-11 flex-shrink-0 items-center gap-0.5 -ml-2.5 mb-2 px-2.5 rounded-xl text-[#0A84FF] active:bg-white/10 transition-colors"
+        >
+          <ChevronLeft className="w-7 h-7 -ml-1" strokeWidth={2.75} aria-hidden="true" />
+          <span className="text-[17px] font-medium tracking-tight">Quay lại</span>
+        </button>
+      )}
       {/* Tab Switcher */}
       <div className="flex bg-slate-950 p-1 rounded-xl mb-3 border border-slate-800 flex-shrink-0">
         <button
@@ -337,7 +351,19 @@ export const SongSearch = ({
           }`}
         >
           <Search className="w-3.5 h-3.5" />
-          <span>Tìm kiếm bài hát</span>
+          <span>Tìm kiếm</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("favorites")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] md:text-xs font-semibold transition ${
+            activeTab === "favorites"
+              ? "bg-slate-800 text-white shadow-md border border-slate-700/60"
+              : "text-slate-400 hover:text-white"
+          }`}
+        >
+          <Heart className="w-3.5 h-3.5" />
+          <span>Yêu thích ({favorites.length})</span>
         </button>
 
         <button
@@ -449,6 +475,15 @@ export const SongSearch = ({
                     <p className="text-xs md:text-[10px] text-slate-400 truncate mt-0.5 md:mt-0">{item.channelTitle || item.authorName}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(item)}
+                      title={isFavorite(item.videoId) ? "Bỏ khỏi yêu thích" : "Lưu vào yêu thích trên thiết bị này"}
+                      aria-label={isFavorite(item.videoId) ? "Bỏ bài hát khỏi danh sách yêu thích" : "Lưu bài hát vào danh sách yêu thích"}
+                      className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl active:scale-95 transition ${isFavorite(item.videoId) ? "text-pink-400 bg-pink-500/10" : "text-slate-400 hover:text-pink-400 hover:bg-pink-500/10"}`}
+                    >
+                      <Heart className={`w-4 h-4 md:w-3.5 md:h-3.5 ${isFavorite(item.videoId) ? "fill-current" : ""}`} />
+                    </button>
                     {isHost && (
                       <button
                         onClick={() => handleDirectPlay(item)}
@@ -474,6 +509,51 @@ export const SongSearch = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {activeTab === "favorites" && (
+        <div className="flex-1 overflow-y-auto space-y-1.5 md:space-y-2 pr-0.5 md:pr-1 min-h-0">
+          {favorites.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs">
+              <Heart className="w-8 h-8 mx-auto mb-2 opacity-40 text-pink-400" />
+              <p className="text-slate-300 font-semibold">Chưa có bài yêu thích</p>
+              <p className="mt-1">Bấm trái tim ở bài hát để lưu trên thiết bị này.</p>
+            </div>
+          ) : favorites.map((item) => (
+            <div key={item.videoId} className="flex items-center gap-2 p-2 md:gap-2.5 bg-slate-950/70 border border-slate-800/80 rounded-xl mobile-video-result">
+              <img
+                src={item.thumbnail}
+                alt={item.title}
+                className="w-16 h-11 md:w-14 md:h-9 object-cover rounded-lg flex-shrink-0 bg-slate-900 border border-slate-800"
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[13px] leading-5 md:text-xs md:leading-normal font-semibold text-white line-clamp-2 md:truncate break-words" title={item.title}>
+                  {item.title}
+                </h4>
+                <p className="text-xs md:text-[10px] text-slate-400 truncate mt-0.5">{item.authorName || "YouTube"}</p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(item)}
+                  title="Xóa khỏi yêu thích"
+                  aria-label="Xóa khỏi yêu thích"
+                  className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center text-pink-400 hover:bg-pink-500/10 rounded-xl transition"
+                >
+                  <Heart className="w-4 h-4 md:w-3.5 md:h-3.5 fill-current" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdd(item)}
+                  title="Thêm bài yêu thích vào danh sách chờ"
+                  className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-xl transition"
+                >
+                  <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -550,6 +630,15 @@ export const SongSearch = ({
                 >
                   <Plus className="w-4 h-4" />
                   <span>Vào danh sách</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(urlPreview)}
+                  className="flex items-center justify-center gap-1.5 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 text-pink-300 text-xs font-bold py-2.5 px-3 rounded-xl transition"
+                >
+                  <Heart className={`w-4 h-4 ${isFavorite(urlPreview.videoId) ? "fill-current" : ""}`} />
+                  <span>{isFavorite(urlPreview.videoId) ? "Đã yêu thích" : "Yêu thích"}</span>
                 </button>
 
                 {isHost && (

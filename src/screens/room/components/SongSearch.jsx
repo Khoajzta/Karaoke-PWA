@@ -334,7 +334,7 @@ export const SongSearch = ({
           type="button"
           onClick={onBack}
           aria-label="Quay lại"
-          className="mobile-search-back hidden min-h-11 flex-shrink-0 items-center gap-0.5 -ml-2.5 mb-2 px-2.5 rounded-xl text-[#0A84FF] active:bg-white/10 transition-colors"
+          className="mobile-search-back hidden min-h-11 flex-shrink-0 items-center gap-0.5 -ml-2.5 mb-2 px-2.5 rounded-xl text-red-500 active:bg-red-500/10 transition-colors"
         >
           <ChevronLeft className="w-7 h-7 -ml-1" strokeWidth={2.75} aria-hidden="true" />
           <span className="text-[17px] font-medium tracking-tight">Quay lại</span>
@@ -520,7 +520,9 @@ export const SongSearch = ({
               <p className="text-slate-300 font-semibold">Chưa có bài yêu thích</p>
               <p className="mt-1">Bấm trái tim ở bài hát để lưu trên thiết bị này.</p>
             </div>
-          ) : favorites.map((item) => (
+          ) : favorites.map((item) => {
+            const isJustAdded = addedId === item.videoId;
+            return (
             <div key={item.videoId} className="flex items-center gap-2 p-2 md:gap-2.5 bg-slate-950/70 border border-slate-800/80 rounded-xl mobile-video-result">
               <img
                 src={item.thumbnail}
@@ -546,14 +548,17 @@ export const SongSearch = ({
                 <button
                   type="button"
                   onClick={() => handleAdd(item)}
-                  title="Thêm bài yêu thích vào danh sách chờ"
-                  className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-xl transition"
+                  title={isJustAdded ? "Đã thêm vào danh sách chờ" : "Thêm bài yêu thích vào danh sách chờ"}
+                  aria-label={isJustAdded ? "Đã thêm vào danh sách chờ" : "Thêm bài yêu thích vào danh sách chờ"}
+                  className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition ${
+                    isJustAdded ? "bg-emerald-500 text-white" : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
                 >
-                  <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                  {isJustAdded ? <Check className="w-4 h-4 md:w-3.5 md:h-3.5" /> : <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />}
                 </button>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

@@ -29,7 +29,8 @@ export const KaraokePlayer = ({
   nextSongTitle,
   onSongEnd,
   onFullscreenChange,
-  externalPlayerRef
+  externalPlayerRef,
+  isMobileSearchOpen = false
 }) => {
   const internalPlayerRef = useRef(null);
   const playerRef = externalPlayerRef || internalPlayerRef;
@@ -694,7 +695,7 @@ export const KaraokePlayer = ({
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? "Thu nhỏ màn hình" : "Phóng to toàn màn hình"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
+              className={`${isMobileSearchOpen ? "hidden lg:flex" : "flex"} items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
                 isFullscreen
                   ? "bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700"
                   : "bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"

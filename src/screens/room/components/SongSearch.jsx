@@ -344,38 +344,38 @@ export const SongSearch = ({
       <div className="flex bg-slate-950 p-1 rounded-xl mb-3 border border-slate-800 flex-shrink-0">
         <button
           onClick={() => setActiveTab("search")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] leading-4 md:text-xs font-semibold transition ${
             activeTab === "search"
               ? "bg-slate-800 text-white shadow-md border border-slate-700/60"
               : "text-slate-400 hover:text-white"
           }`}
         >
           <Search className="w-3.5 h-3.5" />
-          <span>Tìm kiếm</span>
+          <span className="whitespace-nowrap">Tìm kiếm</span>
         </button>
 
         <button
           onClick={() => setActiveTab("favorites")}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] md:text-xs font-semibold transition ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] leading-4 md:text-xs font-semibold transition ${
             activeTab === "favorites"
               ? "bg-slate-800 text-white shadow-md border border-slate-700/60"
               : "text-slate-400 hover:text-white"
           }`}
         >
           <Heart className="w-3.5 h-3.5" />
-          <span>Yêu thích ({favorites.length})</span>
+          <span className="whitespace-nowrap">Yêu thích ({favorites.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab("url")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] leading-4 md:text-xs font-semibold transition ${
             activeTab === "url"
               ? "bg-slate-800 text-white shadow-md border border-slate-700/60"
               : "text-slate-400 hover:text-white"
           }`}
         >
           <LinkIcon className="w-3.5 h-3.5" />
-          <span>Dán Link YouTube</span>
+          <span className="whitespace-nowrap">Dán Link YouTube</span>
         </button>
       </div>
 

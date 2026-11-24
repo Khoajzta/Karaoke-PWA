@@ -775,6 +775,7 @@ export function App() {
                         nextSongTitle={queueItems[0]?.title}
                         onSongEnd={handleNextSong}
                         onFullscreenChange={setIsPlayerFullscreen}
+                        isMobileSearchOpen={hostMobileTab === "search"}
                       />
                     </ErrorBoundary>
 
@@ -950,6 +951,7 @@ export function App() {
                         nextSongTitle={queueItems[0]?.title}
                         onSongEnd={handleNextSong}
                         onFullscreenChange={setIsPlayerFullscreen}
+                        isMobileSearchOpen={mobileTab === "search"}
                       />
                     </ErrorBoundary>
 

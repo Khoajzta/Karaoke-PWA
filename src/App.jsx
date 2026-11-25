@@ -821,6 +821,7 @@ export function App() {
                     <HostControls
                       roomId={currentRoomId}
                       playback={roomData?.playback}
+                      peerPositions={roomData?.members}
                       onNextSong={handleNextSong}
                       playerRef={hostPlayerRef}
                     />

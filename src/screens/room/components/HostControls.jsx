@@ -13,12 +13,14 @@ import {
   Smartphone
 } from "lucide-react";
 import { rtdb, ref, update, getServerTime } from "../../../firebase";
+import { getFastestPlaybackTarget } from "../../../utils/playbackSync";
 
 const createAdvanceToken = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
 export const HostControls = ({
   roomId,
   playback,
+  peerPositions = {},
   onNextSong,
   playerRef
 }) => {
@@ -115,15 +117,27 @@ export const HostControls = ({
   const handleForceResync = async () => {
     if (!roomId || !playback?.videoId) return;
     const playerTime = playerRef?.current?.getCurrentTime?.();
-    const videoTime = Number.isFinite(playerTime) ? Math.max(0, playerTime) : currentTime;
     const nowServer = getServerTime();
+    const hostTime = Number.isFinite(playerTime) ? Math.max(0, playerTime) : currentTime;
+    const videoTime = playback.state === "playing"
+      ? getFastestPlaybackTarget({
+          currentServerTime: nowServer,
+          anchorServerTime: playback.anchorServerTime,
+          currentTime: hostTime,
+          videoId: playback.videoId,
+          seekTrigger: playback.seekTrigger,
+          peerPositions
+        })
+      : hostTime;
 
     setCurrentTime(videoTime);
+    playerRef?.current?.seekTo?.(videoTime, true);
     await update(ref(rtdb, `rooms/${roomId}/playback`), {
       ...(playback.state === "playing" && {
         anchorServerTime: nowServer - Math.round(videoTime * 1000)
       }),
       pausedAt: videoTime,
+      seekTrigger: nowServer,
       syncTrigger: nowServer
     });
   };

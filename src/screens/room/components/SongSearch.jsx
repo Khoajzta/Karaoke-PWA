@@ -80,6 +80,7 @@ export const SongSearch = ({
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const searchRequestIdRef = useRef(0);
   const [isListening, setIsListening] = useState(false);
   const speechRecognitionRef = useRef(null);
 
@@ -207,13 +208,17 @@ export const SongSearch = ({
     }
   };
 
-  useEffect(() => () => speechRecognitionRef.current?.stop(), []);
+  useEffect(() => () => {
+    searchRequestIdRef.current += 1;
+    speechRecognitionRef.current?.stop();
+  }, []);
 
   // Search or detect pasted URL in search bar
   const handleSearch = async (e, queryOverride) => {
     if (e) e.preventDefault();
     const query = (queryOverride ?? searchQuery).trim();
     if (!query) return;
+    const requestId = ++searchRequestIdRef.current;
     setSuggestionsDismissed(true);
     setQuerySuggestions([]);
 
@@ -224,32 +229,35 @@ export const SongSearch = ({
         setIsSearching(true);
         setSearchError("");
         const info = await fetchYouTubeOEmbed(detectedId);
-        setSearchResults([info]);
-        setSearchQuery("");
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults([info]);
+          setSearchQuery("");
+        }
       } catch (err) {
+        if (requestId !== searchRequestIdRef.current) return;
         setSearchError("Không thể lấy thông tin video từ liên kết.");
       } finally {
-        setIsSearching(false);
+        if (requestId === searchRequestIdRef.current) setIsSearching(false);
       }
       return;
     }
 
-    // Use a fresh shared cache entry even when the API key is unavailable.
-    const apiKey = localStorage.getItem("yt_api_key") || import.meta.env.VITE_YOUTUBE_API_KEY;
-
     try {
+      // Use a fresh shared cache entry even when the API key is unavailable.
+      const apiKey = localStorage.getItem("yt_api_key") || import.meta.env.VITE_YOUTUBE_API_KEY;
       setIsSearching(true);
       setSearchError("");
       const results = await searchYouTubeAPI(query, apiKey);
-      setSearchResults(results);
-      if (results.length === 0) {
+      if (requestId === searchRequestIdRef.current) setSearchResults(results);
+      if (requestId === searchRequestIdRef.current && results.length === 0) {
         setSearchError("Không tìm thấy bài hát nào phù hợp.");
       }
     } catch (err) {
+      if (requestId !== searchRequestIdRef.current) return;
       console.error(err);
       setSearchError(err.message || "Lỗi khi tìm kiếm video.");
     } finally {
-      setIsSearching(false);
+      if (requestId === searchRequestIdRef.current) setIsSearching(false);
     }
   };
 
@@ -323,13 +331,14 @@ export const SongSearch = ({
   };
 
   const handleAdd = async (item) => {
-    const queuedItem = await onAddToQueue({
+    try {
+      const queuedItem = await onAddToQueue({
       videoId: item.videoId,
       title: item.title,
       thumbnail: item.thumbnail,
       addedBy: user?.displayName || "Khách",
       addedByUid: user?.uid || "anon"
-    });
+      });
     setAddedId(item.videoId);
     setTimeout(() => setAddedId(null), 1500);
     clearTimeout(playToastTimerRef.current);
@@ -346,6 +355,14 @@ export const SongSearch = ({
     if (activeTab === "url") {
       setUrlInput("");
       setUrlPreview(null);
+    }
+    } catch (error) {
+      clearTimeout(addToastTimerRef.current);
+      setAddedToast({
+        title: item.title,
+        error: error?.message || "Không thể thêm bài hát. Vui lòng thử lại."
+      });
+      addToastTimerRef.current = setTimeout(() => setAddedToast(null), 7000);
     }
   };
 
@@ -759,10 +776,12 @@ export const SongSearch = ({
         <div
           role="status"
           aria-live="polite"
-          className="absolute bottom-3 left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-auto sm:right-5 sm:w-[min(24rem,calc(100%-2.5rem))]"
+          className={`absolute bottom-3 left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-auto sm:right-5 sm:w-[min(24rem,calc(100%-2.5rem))] ${addedToast.error ? "border-rose-400/40" : "border-emerald-400/40"}`}
         >
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
-            <Check className="h-5 w-5" aria-hidden="true" />
+          <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${addedToast.error ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}`}>
+            {addedToast.error
+              ? <AlertCircle className="h-5 w-5" aria-hidden="true" />
+              : <Check className="h-5 w-5" aria-hidden="true" />}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white">

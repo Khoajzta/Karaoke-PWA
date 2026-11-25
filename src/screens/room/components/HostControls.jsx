@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { 
   Play, 
-  Pause, 
+  Pause,
   SkipForward, 
   RotateCcw, 
   FastForward, 
   Rewind,
   Volume2,
   VolumeX,
-  Radio,
   Maximize2,
   Minimize2,
   Smartphone

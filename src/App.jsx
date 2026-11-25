@@ -501,6 +501,15 @@ export function App() {
       ? Math.max(...queueItems.map((q) => q.order || 0)) 
       : 0;
 
+    const sequenceRef = ref(rtdb, `rooms/${currentRoomId}/queueSequence`);
+    const sequenceResult = await runTransaction(sequenceRef, (currentSequence) => {
+      const sequence = Number.isFinite(currentSequence) ? currentSequence : 0;
+      return Math.max(sequence + 1, maxOrder + 1);
+    });
+    if (!sequenceResult.committed) {
+      throw new Error("Không thể xếp thứ tự bài hát. Vui lòng thử lại.");
+    }
+    const order = sequenceResult.snapshot.val();
     const queueRef = ref(rtdb, `rooms/${currentRoomId}/queue`);
     const queueEntry = await push(queueRef, {
       videoId: song.videoId,
@@ -508,10 +517,10 @@ export function App() {
       thumbnail: song.thumbnail,
       addedBy: song.addedBy || user?.displayName || "Khách",
       addedByUid: song.addedByUid || user?.uid || "anon",
-      order: maxOrder + 1,
+      order,
       createdAt: getServerTime()
     });
-    return { id: queueEntry.key, order: maxOrder + 1, position: queueItems.length + 1 };
+    return { id: queueEntry.key, order, position: queueItems.length + 1 };
   };
 
   const handleUndoQueueAddition = async (itemId) => {

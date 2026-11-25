@@ -485,7 +485,7 @@ export const KaraokePlayer = ({
         const diff = targetTime - currentTime;
         setCurrentDiff(diff);
 
-        if (diff > 0.75) {
+        if (diff > 0.1) {
           player.seekTo(targetTime, true);
           lastSyncSeekAtRef.current = Date.now();
           setSyncStatus("Đã đồng bộ với phòng");
@@ -511,11 +511,11 @@ export const KaraokePlayer = ({
   }, [playerReady, playback?.seekTrigger, playback?.state, playback?.anchorServerTime, playback?.pausedAt, safeCall]);
 
   // ==========================================
-  // Follow the furthest active player. Corrections only move playback forward,
-  // so a device that is already ahead never gets pulled back.
+  // Members follow the furthest active position. The host stays untouched so
+  // participant drift never makes the main display seek or stutter.
   // ==========================================
   useEffect(() => {
-    if (!playerReady) return;
+    if (isHost || !playerReady) return;
 
     const interval = setInterval(() => {
       if (document.visibilityState !== "visible") return;
@@ -549,11 +549,10 @@ export const KaraokePlayer = ({
         const diff = targetTime - currentTime;
         setCurrentDiff(diff);
 
-        // Avoid repeated seeks for small drift: YouTube seeks can visibly stutter,
-        // especially immediately after a background tab becomes active again.
-        // Correct larger gaps once, then allow the player time to settle.
+        // Correct measurable drift while leaving a short settling period after
+        // each seek so small timing differences do not trigger constant jumps.
         const now = Date.now();
-        if (diff > 0.75 && now - lastSyncSeekAtRef.current > 1500) {
+        if (diff > 0.1 && now - lastSyncSeekAtRef.current > 2500) {
           player.seekTo(targetTime, true);
           lastSyncSeekAtRef.current = now;
           setSyncStatus("Đã căn lại video");
@@ -566,7 +565,7 @@ export const KaraokePlayer = ({
     return () => {
       clearInterval(interval);
     };
-  }, [playerReady, playback?.state, playback?.anchorServerTime, playback?.videoId, playback?.seekTrigger, safeCall]);
+  }, [isHost, playerReady, playback?.state, playback?.anchorServerTime, playback?.videoId, playback?.seekTrigger, safeCall]);
 
   // Handle Video Ended
   const handleEnd = () => {
@@ -624,12 +623,13 @@ export const KaraokePlayer = ({
     playerVars: {
       autoplay: 1,
       // On mobile/member, disable native controls so users don't break sync accidentally
-      controls: isHost ? 1 : 0,
+      // Host playback uses HostControls so actions are shared through Firebase.
+      controls: 0,
       modestbranding: 1,
       rel: 0,
       playsinline: 1,
       fs: 1,
-      disablekb: isHost ? 0 : 1
+      disablekb: 1
     }
   };
 
@@ -640,12 +640,12 @@ export const KaraokePlayer = ({
       ? { color: "bg-yellow-400", label: "Đang đồng bộ" }
       : playback?.state !== "playing"
         ? { color: "bg-emerald-400", label: "Đang tạm dừng" }
-        : syncDelta > 2
-          ? { color: "bg-red-500", label: "Lệch trên 2 giây" }
-          : syncDelta > 1
-            ? { color: "bg-orange-400", label: "Lệch từ 1 đến 2 giây" }
-            : syncDelta > 0.4
-              ? { color: "bg-yellow-400", label: "Lệch từ 0,4 đến 1 giây" }
+        : syncDelta > 1
+          ? { color: "bg-red-500", label: "Lệch trên 1 giây" }
+          : syncDelta > 0.5
+            ? { color: "bg-orange-400", label: "Lệch từ 0,5 đến 1 giây" }
+            : syncDelta > 0.1
+              ? { color: "bg-yellow-400", label: "Lệch từ 0,1 đến 0,5 giây" }
               : { color: "bg-emerald-400", label: "Đồng bộ ổn định" };
 
   if (!playback?.videoId) {
@@ -699,16 +699,14 @@ export const KaraokePlayer = ({
             iframeClassName="w-full h-full"
           />
 
-          {/* Members can watch but only the Host may control YouTube playback. */}
-          {!isHost && (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 z-20 cursor-default"
-              onClick={(event) => event.preventDefault()}
-              onDoubleClick={(event) => event.preventDefault()}
-              onContextMenu={(event) => event.preventDefault()}
-            />
-          )}
+          {/* Block iframe clicks on every device; host actions use shared controls. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-20 cursor-default"
+            onClick={(event) => event.preventDefault()}
+            onDoubleClick={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
+          />
 
           {/* Sync status overlay badge (hidden in fullscreen for cleaner view) */}
           {!isHost && !isFullscreen && (
@@ -753,7 +751,7 @@ export const KaraokePlayer = ({
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? "Thu nhỏ màn hình" : "Phóng to toàn màn hình"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
+              className={`${isMobileSearchOpen && !isFullscreen ? "hidden lg:flex" : "flex"} items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
                 isFullscreen
                   ? "bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700"
                   : "bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"

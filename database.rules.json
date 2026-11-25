@@ -25,6 +25,10 @@
             }
           }
         },
+        "queueSequence": {
+          ".write": "auth != null && newData.exists() && root.child('rooms').child($roomId).child('info').child('hostUid').exists() && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true || root.child('rooms').child($roomId).child('members').child(auth.uid).exists())",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() > data.val())"
+        },
         "queue": {
           "$queueId": {
             ".write": "auth != null && root.child('rooms').child($roomId).child('info').child('hostUid').exists() && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true || (newData.exists() && newData.child('addedByUid').val() === auth.uid) || (!newData.exists() && data.child('addedByUid').val() === auth.uid) || (!newData.exists() && root.child('rooms').child($roomId).child('members').child(auth.uid).exists() && root.child('rooms').child($roomId).child('playback').child('state').val() === 'playing' && root.child('rooms').child($roomId).child('playback').child('videoId').val() === data.child('videoId').val() && root.child('rooms').child($roomId).child('advanceClaims').child(auth.uid).child('queueId').val() === $queueId && root.child('rooms').child($roomId).child('advanceClaims').child(auth.uid).child('nextVideoId').val() === data.child('videoId').val() && root.child('rooms').child($roomId).child('advanceClaims').child(auth.uid).child('requestToken').val() === root.child('rooms').child($roomId).child('playback').child('advanceToken').val()))",

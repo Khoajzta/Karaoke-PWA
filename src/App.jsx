@@ -637,6 +637,13 @@ export function App() {
             ".read": true,
             ".write": "auth != null"
           }
+        },
+        searchCache: {
+          ".read": true,
+          ".indexOn": ["expiresAt"],
+          $cacheKey: {
+            ".write": "auth != null"
+          }
         }
       }
     }, null, 2);
@@ -732,6 +739,13 @@ export function App() {
     "rooms": {
       "$roomId": {
         ".read": true,
+        ".write": "auth != null"
+      }
+    },
+    "searchCache": {
+      ".read": true,
+      ".indexOn": ["expiresAt"],
+      "$cacheKey": {
         ".write": "auth != null"
       }
     }

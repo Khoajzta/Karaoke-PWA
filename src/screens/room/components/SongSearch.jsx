@@ -224,12 +224,8 @@ export const SongSearch = ({
       return;
     }
 
-    // Normal query search via YouTube API
+    // Use a fresh shared cache entry even when the API key is unavailable.
     const apiKey = localStorage.getItem("yt_api_key") || import.meta.env.VITE_YOUTUBE_API_KEY;
-    if (!apiKey) {
-      setSearchError("Tính năng tìm bài hát chưa được bật. Bạn vẫn có thể dán link YouTube để thêm bài hát.");
-      return;
-    }
 
     try {
       setIsSearching(true);

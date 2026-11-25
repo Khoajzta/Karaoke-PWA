@@ -62,10 +62,19 @@ Trong Firebase Console -> Realtime Database -> Rules, thiết lập quyền đ�
         ".read": true,
         ".write": "auth != null"
       }
+    },
+    "searchCache": {
+      ".read": true,
+      ".indexOn": ["expiresAt"],
+      "$cacheKey": {
+        ".write": "auth != null"
+      }
     }
   }
 }
 ```
+
+Kết quả tìm kiếm được dùng chung qua Realtime Database và lưu tối đa 48 giờ. Nếu đã có cấu hình Rules, hãy thêm nhánh `searchCache` như trên để cache hoạt động; nếu không, tìm kiếm vẫn chạy nhưng mỗi lần sẽ gọi YouTube.
 
 ### 4. Bật Authentication Providers
 Trong Firebase Console -> Authentication -> Sign-in method:

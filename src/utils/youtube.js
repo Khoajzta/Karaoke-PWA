@@ -1,3 +1,41 @@
+import { endAt, limitToFirst, orderByChild, query } from "firebase/database";
+import { get, getServerTime, ref, remove, rtdb, set } from "../firebase";
+
+const SEARCH_CACHE_TTL_MS = 48 * 60 * 60 * 1000;
+const MAX_EXPIRED_CACHE_ENTRIES_TO_REMOVE = 100;
+
+const getSearchCacheKey = async (queryText) => {
+  const bytes = new TextEncoder().encode(queryText);
+  if (globalThis.crypto?.subtle) {
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const isValidSearchResults = (results) => Array.isArray(results) && results.length <= 15 && results.every(
+  (item) => typeof item?.videoId === "string" && typeof item?.title === "string" && typeof item?.thumbnail === "string"
+);
+
+const removeExpiredSearchCacheEntries = async (now) => {
+  if (!rtdb) return;
+  const expiredEntriesQuery = query(
+    ref(rtdb, "searchCache"),
+    orderByChild("expiresAt"),
+    endAt(now),
+    limitToFirst(MAX_EXPIRED_CACHE_ENTRIES_TO_REMOVE)
+  );
+  const snapshot = await get(expiredEntriesQuery);
+  const removals = [];
+  snapshot.forEach((entry) => {
+    removals.push(remove(ref(rtdb, `searchCache/${entry.key}`)));
+  });
+  await Promise.all(removals);
+};
+
 // Extract YouTube Video ID from any standard URL, short link, embed, live, shorts, or raw 11-char ID
 export const extractYouTubeId = (urlOrId) => {
   if (!urlOrId) return null;
@@ -120,14 +158,36 @@ export const fetchYouTubeOEmbed = async (videoId) => {
 
 // Search YouTube Data API v3 (automatically appends 'karaoke')
 export const searchYouTubeAPI = async (query, apiKey) => {
-  if (!apiKey) {
-    throw new Error("Vui lòng nhập YouTube Data API v3 Key trong Cài đặt");
-  }
-
   const trimmedQuery = query.trim();
   const fullQuery = trimmedQuery.toLowerCase().includes("karaoke") 
     ? trimmedQuery 
     : `${trimmedQuery} karaoke`;
+
+  const cacheQuery = fullQuery.trim().toLocaleLowerCase("vi");
+  const now = getServerTime();
+  let cacheRef = null;
+  if (rtdb) {
+    try {
+      const cacheKey = await getSearchCacheKey(cacheQuery);
+      cacheRef = ref(rtdb, `searchCache/${cacheKey}`);
+      const cacheSnapshot = await get(cacheRef);
+      const cachedEntry = cacheSnapshot.val();
+      if (cachedEntry?.expiresAt > now && isValidSearchResults(cachedEntry.results)) {
+        removeExpiredSearchCacheEntries(now).catch((error) => {
+          console.warn("Could not clean expired YouTube search cache entries:", error);
+        });
+        return cachedEntry.results;
+      }
+      if (cacheSnapshot.exists()) await remove(cacheRef);
+    } catch (error) {
+      console.warn("Could not read the shared YouTube search cache:", error);
+      cacheRef = null;
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error("Tính năng tìm bài hát chưa được bật. Bạn vẫn có thể dán link YouTube để thêm bài hát.");
+  }
 
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=15&q=${encodeURIComponent(
     fullQuery
@@ -140,10 +200,25 @@ export const searchYouTubeAPI = async (query, apiKey) => {
     throw new Error(data.error?.message || "Lỗi khi tìm kiếm YouTube");
   }
 
-  return (data.items || []).map((item) => ({
+  const results = (data.items || []).map((item) => ({
     videoId: item.id.videoId,
     title: item.snippet.title,
     thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${item.id.videoId}/hqdefault.jpg`,
     channelTitle: item.snippet.channelTitle
   }));
+
+  if (cacheRef) {
+    try {
+      await removeExpiredSearchCacheEntries(now);
+      await set(cacheRef, {
+        results,
+        cachedAt: now,
+        expiresAt: now + SEARCH_CACHE_TTL_MS
+      });
+    } catch (error) {
+      console.warn("Could not save the shared YouTube search cache:", error);
+    }
+  }
+
+  return results;
 };

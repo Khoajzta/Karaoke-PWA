@@ -172,6 +172,13 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
             ".read": true,
             ".write": "auth != null"
           }
+        },
+        searchCache: {
+          ".read": true,
+          ".indexOn": ["expiresAt"],
+          $cacheKey: {
+            ".write": "auth != null"
+          }
         }
       }
     }, null, 2);
@@ -215,6 +222,13 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
     "rooms": {
       "$roomId": {
         ".read": true,
+        ".write": "auth != null"
+      }
+    },
+    "searchCache": {
+      ".read": true,
+      ".indexOn": ["expiresAt"],
+      "$cacheKey": {
         ".write": "auth != null"
       }
     }

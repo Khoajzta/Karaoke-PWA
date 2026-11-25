@@ -92,13 +92,16 @@ export const SongSearch = ({
   const [addedId, setAddedId] = useState(null);
   const [addedToast, setAddedToast] = useState(null);
   const [playToast, setPlayToast] = useState(null);
+  const [favoriteToast, setFavoriteToast] = useState(null);
   const [isUndoingAdd, setIsUndoingAdd] = useState(false);
   const addToastTimerRef = useRef(null);
   const playToastTimerRef = useRef(null);
+  const favoriteToastTimerRef = useRef(null);
 
   useEffect(() => () => {
     clearTimeout(addToastTimerRef.current);
     clearTimeout(playToastTimerRef.current);
+    clearTimeout(favoriteToastTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -291,6 +294,18 @@ export const SongSearch = ({
   const handleUrlSubmit = (e) => {
     e.preventDefault();
     resolveUrl(urlInput);
+  };
+
+  const handleToggleFavorite = (song) => {
+    const removing = isFavorite(song.videoId);
+    toggleFavorite(song);
+    clearTimeout(favoriteToastTimerRef.current);
+    setFavoriteToast({
+      title: song.title,
+      videoId: song.videoId,
+      action: removing ? "removed" : "added"
+    });
+    favoriteToastTimerRef.current = setTimeout(() => setFavoriteToast(null), 2200);
   };
 
   const handlePasteClipboard = async () => {
@@ -539,9 +554,10 @@ export const SongSearch = ({
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       type="button"
-                      onClick={() => toggleFavorite(item)}
+                      onClick={() => handleToggleFavorite(item)}
                       title={isFavorite(item.videoId) ? "Bỏ khỏi yêu thích" : "Lưu vào yêu thích trên thiết bị này"}
                       aria-label={isFavorite(item.videoId) ? "Bỏ bài hát khỏi danh sách yêu thích" : "Lưu bài hát vào danh sách yêu thích"}
+                      aria-pressed={isFavorite(item.videoId)}
                       className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl active:scale-95 transition ${isFavorite(item.videoId) ? "text-pink-400 bg-pink-500/10" : "text-slate-400 hover:text-pink-400 hover:bg-pink-500/10"}`}
                     >
                       <Heart className={`w-4 h-4 md:w-3.5 md:h-3.5 ${isFavorite(item.videoId) ? "fill-current" : ""}`} />
@@ -606,9 +622,10 @@ export const SongSearch = ({
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => toggleFavorite(item)}
+                  onClick={() => handleToggleFavorite(item)}
                   title="Xóa khỏi yêu thích"
                   aria-label="Xóa khỏi yêu thích"
+                  aria-pressed="true"
                   className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center text-pink-400 hover:bg-pink-500/10 rounded-xl transition"
                 >
                   <Heart className="w-4 h-4 md:w-3.5 md:h-3.5 fill-current" />
@@ -709,8 +726,9 @@ export const SongSearch = ({
 
                 <button
                   type="button"
-                  onClick={() => toggleFavorite(urlPreview)}
-                  className="flex items-center justify-center gap-1.5 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 text-pink-300 text-xs font-bold py-2.5 px-3 rounded-xl transition"
+                  onClick={() => handleToggleFavorite(urlPreview)}
+                  aria-pressed={isFavorite(urlPreview.videoId)}
+                  className="flex items-center justify-center gap-1.5 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 text-pink-300 text-xs font-bold py-2.5 px-3 rounded-xl transition active:scale-95"
                 >
                   <Heart className={`w-4 h-4 ${isFavorite(urlPreview.videoId) ? "fill-current" : ""}`} />
                   <span>{isFavorite(urlPreview.videoId) ? "Đã yêu thích" : "Yêu thích"}</span>
@@ -787,6 +805,25 @@ export const SongSearch = ({
               {playToast.error || (playToast.loading ? "Đang gửi lệnh phát..." : "Đã gửi lệnh phát")}
             </p>
             <p className="truncate text-xs text-slate-300" title={playToast.title}>{playToast.title}</p>
+          </div>
+        </div>
+      )}
+      {favoriteToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`absolute left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border border-pink-400/40 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md toast-enter sm:left-auto sm:right-5 sm:w-[min(24rem,calc(100%-2.5rem))] ${
+            addedToast || playToast ? "bottom-20 sm:bottom-24" : "bottom-3 sm:bottom-5"
+          }`}
+        >
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-pink-500/15 text-pink-300">
+            <Heart className={`h-5 w-5 ${favoriteToast.action === "added" ? "fill-current" : ""}`} aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white">
+              {favoriteToast.action === "added" ? "Đã thêm vào yêu thích" : "Đã xóa khỏi yêu thích"}
+            </p>
+            <p className="truncate text-xs text-slate-300" title={favoriteToast.title}>{favoriteToast.title}</p>
           </div>
         </div>
       )}

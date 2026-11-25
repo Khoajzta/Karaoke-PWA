@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Mic2, 
   Settings, 
@@ -36,7 +36,29 @@ export const Navbar = ({
   const [copied, setCopied] = useState(false);
   const [offsetMs, setOffsetMs] = useState(0);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const accountActionsRef = useRef(null);
+  const accountTriggerRef = useRef(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 639px)").matches);
+
+  useEffect(() => {
+    if (!isAccountOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (!accountActionsRef.current?.contains(event.target)) setIsAccountOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsAccountOpen(false);
+        accountTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountOpen]);
 
   useEffect(() => {
     const unsub = subscribeServerTimeOffset((val) => {
@@ -58,6 +80,11 @@ export const Navbar = ({
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAccountLogout = () => {
+    setIsAccountOpen(false);
+    return (onLogout || logout)();
   };
 
   return (
@@ -218,29 +245,50 @@ export const Navbar = ({
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {user && (
             <>
-              {/* Avatar chip — icon + HOST badge only on mobile, full name on sm+ */}
-              <div className="h-9 sm:h-9 flex items-center gap-1 bg-slate-800/60 border border-slate-700/60 px-1.5 sm:px-2 py-1 rounded-xl">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || "User"} className="w-5 h-5 rounded-full flex-shrink-0" />
-                ) : (
-                  <User className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                )}
-                {isHost && (
-                  <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-px rounded leading-none">
-                    HOST
+              <div className="relative" ref={accountActionsRef}>
+                <button
+                  ref={accountTriggerRef}
+                  type="button"
+                  onClick={() => setIsAccountOpen((open) => !open)}
+                  aria-label={`Tài khoản: ${user.displayName || "Khách"}`}
+                  aria-expanded={isAccountOpen}
+                  aria-controls="account-actions"
+                  title="Tài khoản"
+                  className="h-9 flex items-center gap-1 bg-slate-800/60 border border-slate-700/60 px-1.5 sm:px-2 rounded-xl hover:bg-slate-800 transition"
+                >
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-5 h-5 rounded-full flex-shrink-0" />
+                  ) : (
+                    <User className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                  )}
+                  {isHost && (
+                    <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-px rounded leading-none">
+                      HOST
+                    </span>
+                  )}
+                  <span className="hidden sm:block text-xs font-medium text-slate-200 max-w-[72px] truncate">
+                    {user.displayName || "Khách"}
                   </span>
-                )}
-                <span className="hidden sm:block text-xs font-medium text-slate-200 max-w-[72px] truncate">
-                  {user.displayName || "Khách"}
-                </span>
-              </div>
-
-              {!user.isAnonymous && (
-                <button onClick={() => (onLogout || logout)()} title={roomId ? "Đăng xuất và rời phòng" : "Đăng xuất tài khoản Google"} aria-label={roomId ? "Đăng xuất và rời phòng" : "Đăng xuất tài khoản Google"} className="w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500 transition flex items-center justify-center sm:gap-1">
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[11px] font-semibold">{roomId ? "Rời & đăng xuất" : "Đăng xuất"}</span>
                 </button>
-              )}
+
+                {isAccountOpen && (
+                  <div id="account-actions" className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl z-50">
+                    <div className="px-3 py-2 text-xs text-slate-400 truncate border-b border-slate-800">
+                      {user.displayName || "Khách"}
+                    </div>
+                    {!user.isAnonymous && (
+                      <button
+                        type="button"
+                        onClick={handleAccountLogout}
+                        className="mt-2 w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/10 transition"
+                      >
+                        <LogOut className="w-4 h-4 flex-shrink-0" />
+                        <span>{roomId ? isRoomOwner ? "Kết thúc phòng & đăng xuất" : "Rời phòng & đăng xuất" : "Đăng xuất"}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -248,16 +296,16 @@ export const Navbar = ({
           {roomId && (
             <button
               onClick={onLeaveRoom}
-              title={isRoomOwner ? "Rời & giải tán phòng" : "Rời phòng"}
-              aria-label={isRoomOwner ? "Rời và giải tán phòng" : "Rời phòng"}
-              className={`w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl transition text-xs flex items-center justify-center sm:gap-1 ${
+              title={isRoomOwner ? "Kết thúc và giải tán phòng cho mọi người" : "Rời phòng"}
+              aria-label={isRoomOwner ? "Kết thúc phòng cho mọi người" : "Rời phòng"}
+              className={`h-9 px-2 sm:px-3 rounded-xl transition text-[11px] font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 isRoomOwner
                   ? "text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/30"
                   : "text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-700/60"
               }`}
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[11px] font-semibold">{isRoomOwner ? "Giải tán" : "Rời"}</span>
+              <span>{isRoomOwner ? "Kết thúc phòng" : "Rời phòng"}</span>
             </button>
           )}
 

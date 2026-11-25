@@ -7,6 +7,11 @@
     @apply bg-neutral-950 text-slate-100 min-h-screen font-sans;
     -webkit-tap-highlight-color: transparent;
   }
+
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+  }
 }
 
 /* Mobile search is presented as its own YouTube style screen. */

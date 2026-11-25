@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, User, LogIn, AlertCircle, ShieldAlert, Sparkles, PlusCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 
 export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đăng nhập" }) => {
   const { loginWithGoogle, loginAsGuest, isConfigured } = useAuth();
@@ -8,6 +9,8 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isDomainError, setIsDomainError] = useState(false);
+  const dialogRef = useRef(null);
+  useModalAccessibility(isOpen, onClose, dialogRef);
 
   if (!isOpen) return null;
 
@@ -59,11 +62,12 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" tabIndex={-1} className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/50 flex-shrink-0">
-          <h3 className="font-bold text-white text-base">{title}</h3>
+          <h3 id="auth-modal-title" className="font-bold text-white text-base">{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Đóng cửa sổ đăng nhập"
             className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
@@ -72,7 +76,7 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
 
         <div className="p-6 space-y-4 overflow-y-auto">
           {error && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs space-y-2">
+            <div role="alert" className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs space-y-2">
               <div className="flex items-center gap-2 font-medium">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
                 <span>{error}</span>
@@ -144,12 +148,13 @@ export const AuthModal = ({ isOpen, onClose, requiredGoogle = false, title = "Đ
           {/* Guest Sign In (Works everywhere including phone LAN IP without domain whitelist) */}
           <form onSubmit={handleGuestLogin} className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label htmlFor="auth-guest-name" className="block text-xs font-semibold text-slate-300 mb-1.5">
                 {isCreatingRoom ? "Tạo phòng nhanh bằng tên hiển thị (Không cần Google):" : "Tham gia nhanh bằng tên Khách:"}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="auth-guest-name"
                   type="text"
                   placeholder="Nhập tên của bạn (VD: Tuấn Ca Sĩ)..."
                   value={guestName}

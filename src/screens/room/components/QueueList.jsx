@@ -98,6 +98,7 @@ const SortableQueueItem = ({
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => onPlayNow(item)}
+            aria-label={`Phát ngay: ${item.title}`}
             title="Phát ngay bài này"
             className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-xl active:scale-95 transition"
           >
@@ -105,6 +106,7 @@ const SortableQueueItem = ({
           </button>
           <button
             onClick={() => onRemove(item.id)}
+            aria-label={`Xóa khỏi danh sách chờ: ${item.title}`}
             title="Xóa bài khỏi danh sách"
             className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 rounded-xl active:scale-95 transition"
           >

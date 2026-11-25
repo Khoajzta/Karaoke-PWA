@@ -43,9 +43,12 @@ import {
   LogOut
 } from "lucide-react";
 
+const createPlaybackToken = (userId) => `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
 export function App() {
   const { user, loading: authLoading, isConfigured, logout } = useAuth();
   const hostPlayerRef = useRef(null);
+  const pendingAdvanceRequestsRef = useRef(new Set());
   const rulesText = JSON.stringify(databaseRules, null, 2);
 
   // App Navigation & Room State
@@ -531,7 +534,8 @@ export function App() {
       title: song.title,
       state: "playing",
       anchorServerTime: startAtServerTime,
-      pausedAt: 0
+      pausedAt: 0,
+      advanceToken: createPlaybackToken(user.uid)
     });
 
     // If item was in queue, remove it
@@ -540,20 +544,111 @@ export function App() {
     }
   };
 
-  // Advance atomically so a guest can keep the queue moving while the host is
-  // in the background. The ended video ID prevents multiple guests from
-  // consuming multiple queue items for the same end event.
+  // Any player can advance on video end. Each device transacts against the
+  // same playback record, so only the first request for the ended video wins.
   const handleNextSong = async (endedAt, endedVideoId) => {
     if (!currentRoomId || !user?.uid) return;
     const expectedVideoId = endedVideoId || (isHost ? roomData?.playback?.videoId : null);
     if (!expectedVideoId && !isHost) return;
+    const requestKey = `${currentRoomId}:${expectedVideoId || "empty"}`;
+    if (pendingAdvanceRequestsRef.current.has(requestKey)) return;
+    pendingAdvanceRequestsRef.current.add(requestKey);
 
-    const requestRef = push(ref(rtdb, `rooms/${currentRoomId}/advanceRequests`));
-    await set(requestRef, {
-      videoId: expectedVideoId || "__none__",
-      requestedBy: user.uid,
-      ...(typeof endedAt === "number" ? { endedAt } : {})
-    });
+    let advanceRequestRef;
+    let advanceRequestCreated = false;
+    try {
+      const roomSnapshot = await get(ref(rtdb, `rooms/${currentRoomId}`));
+      const room = roomSnapshot.val();
+      const currentPlayback = room?.playback;
+      if (!currentPlayback || (expectedVideoId && currentPlayback.videoId !== expectedVideoId)) return;
+      if (endedVideoId && currentPlayback.state !== "playing") return;
+
+      let nextEntry = Object.entries(room.queue || {})
+        .sort(([, a], [, b]) => (a?.order || 0) - (b?.order || 0))[0];
+      const playbackRef = ref(rtdb, `rooms/${currentRoomId}/playback`);
+      const previousAdvanceToken = currentPlayback.advanceToken ?? null;
+      let requestToken = createPlaybackToken(user.uid);
+
+      if (!isHost) {
+        // A member can only write the exact queue item they requested for the
+        // currently playing video. RTDB Rules validate this before allowing
+        // the playback transaction below.
+        if (!endedVideoId || currentPlayback.state !== "playing") return;
+        const [nextQueueId, nextSong] = nextEntry || ["__none__", null];
+        advanceRequestRef = ref(rtdb, `rooms/${currentRoomId}/advanceClaims/${user.uid}`);
+        const proposedClaim = {
+          requestedBy: user.uid,
+          videoId: currentPlayback.videoId,
+          expectedAdvanceToken: previousAdvanceToken,
+          queueId: nextQueueId,
+          nextVideoId: nextSong?.videoId || "__none__",
+          nextTitle: nextSong?.title || "__none__",
+          requestToken,
+          requestedAt: getServerTime()
+        };
+        const claimResult = await runTransaction(advanceRequestRef, (currentClaim) => {
+          const claimIsForThisPlayback = currentClaim?.videoId === currentPlayback.videoId &&
+            (currentClaim.expectedAdvanceToken ?? null) === previousAdvanceToken &&
+            Number.isFinite(currentClaim.requestedAt) &&
+            getServerTime() - currentClaim.requestedAt <= 15000;
+          return claimIsForThisPlayback ? currentClaim : proposedClaim;
+        });
+        if (!claimResult.committed) return;
+        advanceRequestCreated = true;
+        const claim = claimResult.snapshot.val();
+        requestToken = claim.requestToken;
+        if (claim.queueId === "__none__") {
+          nextEntry = null;
+        } else {
+          const claimedSong = room.queue?.[claim.queueId];
+          if (!claimedSong || claimedSong.videoId !== claim.nextVideoId || claimedSong.title !== claim.nextTitle) return;
+          nextEntry = [claim.queueId, claimedSong];
+        }
+      }
+
+      const result = await runTransaction(playbackRef, (latestPlayback) => {
+        if (!latestPlayback || latestPlayback.videoId !== currentPlayback.videoId) return;
+        if ((latestPlayback.advanceToken ?? null) !== previousAdvanceToken) return;
+        if (endedVideoId && latestPlayback.state !== "playing") return;
+
+        if (nextEntry) {
+          const [, nextSong] = nextEntry;
+          return {
+            ...latestPlayback,
+            videoId: nextSong.videoId,
+            title: nextSong.title,
+            state: "playing",
+            anchorServerTime: getServerTime() + 3000,
+            pausedAt: 0,
+            advanceToken: requestToken
+          };
+        }
+
+        return {
+          ...latestPlayback,
+          state: "paused",
+          pausedAt: typeof endedAt === "number" ? endedAt : latestPlayback.pausedAt || 0,
+          advanceToken: requestToken
+        };
+      });
+
+      // Remove the queue item only after the playback transaction wins.
+      if (result.committed && nextEntry) {
+        await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${nextEntry[0]}`));
+      }
+    } catch (error) {
+      console.warn("Could not advance the room playback:", error);
+    } finally {
+      if (advanceRequestRef && advanceRequestCreated) {
+        await runTransaction(advanceRequestRef, (claim) => {
+          if (claim?.requestToken !== requestToken) return;
+          return null;
+        }).catch((error) => {
+          console.warn("Could not clear the playback advance request:", error);
+        });
+      }
+      pendingAdvanceRequestsRef.current.delete(requestKey);
+    }
   };
 
   // Host: Reorder Queue items (drag & drop)

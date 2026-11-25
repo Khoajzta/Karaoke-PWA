@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, Key, Database, Sparkles, Check } from "lucide-react";
 import { getStoredFirebaseConfig, saveFirebaseConfig } from "../../firebase";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 
 export const ConfigModal = ({ isOpen, onClose }) => {
   const currentFb = getStoredFirebaseConfig();
@@ -19,6 +20,8 @@ export const ConfigModal = ({ isOpen, onClose }) => {
   );
 
   const [saved, setSaved] = useState(false);
+  const dialogRef = useRef(null);
+  useModalAccessibility(isOpen, onClose, dialogRef);
 
   if (!isOpen) return null;
 
@@ -40,20 +43,21 @@ export const ConfigModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="config-modal-title" tabIndex={-1} className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/40">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-red-500/10 text-red-400 rounded-lg">
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base">Kết nối ứng dụng</h3>
+              <h3 id="config-modal-title" className="font-bold text-white text-base">Kết nối ứng dụng</h3>
               <p className="text-xs text-slate-400">Thiết lập để tạo phòng và tìm bài hát trên YouTube</p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Đóng cài đặt"
             className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
@@ -65,12 +69,13 @@ export const ConfigModal = ({ isOpen, onClose }) => {
           <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
             <div className="flex items-center gap-2 mb-2 text-red-400 font-medium">
               <Key className="w-4 h-4" />
-              <span>Mã tìm kiếm bài hát trên YouTube (không bắt buộc)</span>
+              <label htmlFor="youtube-api-key">Mã tìm kiếm bài hát trên YouTube (không bắt buộc)</label>
             </div>
             <p className="text-xs text-slate-400 mb-2">
               Nhập mã do người quản lý ứng dụng cung cấp để tìm bài hát. Nếu chưa có, bạn vẫn có thể dán link YouTube.
             </p>
             <input
+              id="youtube-api-key"
               type="text"
               placeholder="AIzaSy..."
               value={ytKey}
@@ -90,8 +95,9 @@ export const ConfigModal = ({ isOpen, onClose }) => {
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Địa chỉ dữ liệu phòng * (databaseURL)</label>
+              <label htmlFor="firebase-database-url" className="block text-xs text-slate-400 mb-1">Địa chỉ dữ liệu phòng * (databaseURL)</label>
               <input
+                id="firebase-database-url"
                 type="text"
                 placeholder="https://your-app-default-rtdb.firebaseio.com"
                 value={fbConfig.databaseURL}
@@ -103,8 +109,9 @@ export const ConfigModal = ({ isOpen, onClose }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Mã kết nối * (apiKey)</label>
+                <label htmlFor="firebase-api-key" className="block text-xs text-slate-400 mb-1">Mã kết nối * (apiKey)</label>
                 <input
+                  id="firebase-api-key"
                   type="text"
                   placeholder="AIzaSy..."
                   value={fbConfig.apiKey}
@@ -115,8 +122,9 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Mã dự án * (projectId)</label>
+                <label htmlFor="firebase-project-id" className="block text-xs text-slate-400 mb-1">Mã dự án * (projectId)</label>
                 <input
+                  id="firebase-project-id"
                   type="text"
                   placeholder="karaoke-sync-demo"
                   value={fbConfig.projectId}
@@ -129,8 +137,9 @@ export const ConfigModal = ({ isOpen, onClose }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Địa chỉ đăng nhập (authDomain)</label>
+                <label htmlFor="firebase-auth-domain" className="block text-xs text-slate-400 mb-1">Địa chỉ đăng nhập (authDomain)</label>
                 <input
+                  id="firebase-auth-domain"
                   type="text"
                   placeholder="your-app.firebaseapp.com"
                   value={fbConfig.authDomain}
@@ -140,8 +149,9 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Mã ứng dụng (appId)</label>
+                <label htmlFor="firebase-app-id" className="block text-xs text-slate-400 mb-1">Mã ứng dụng (appId)</label>
                 <input
+                  id="firebase-app-id"
                   type="text"
                   placeholder="1:123456789:web:abcdef..."
                   value={fbConfig.appId}

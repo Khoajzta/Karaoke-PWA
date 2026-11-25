@@ -244,7 +244,7 @@ export const KaraokePlayer = ({
     // Detect when videoId changes
     if (lastVideoIdRef.current && playback.videoId !== lastVideoIdRef.current) {
       lastVideoIdRef.current = playback.videoId;
-      if (autoFullscreenEnabled) {
+      if (autoFullscreenEnabled && !isMobileSearchOpen) {
         setIsFullscreen(true);
         if (window.innerHeight > window.innerWidth) {
           setIsRotated(true);
@@ -259,7 +259,7 @@ export const KaraokePlayer = ({
     } else if (!lastVideoIdRef.current) {
       lastVideoIdRef.current = playback.videoId;
     }
-  }, [playback?.videoId, isHost, autoFullscreenEnabled]);
+  }, [playback?.videoId, isHost, autoFullscreenEnabled, isMobileSearchOpen]);
 
   // Report each active player's position so every device can follow the one
   // furthest ahead. The room presence effect removes this data on disconnect.
@@ -296,6 +296,7 @@ export const KaraokePlayer = ({
     if (playback?.memberFullscreenTrigger && playback.memberFullscreenTrigger !== lastRemoteTriggerRef.current) {
       lastRemoteTriggerRef.current = playback.memberFullscreenTrigger;
       if (playback.memberFullscreen) {
+        if (isMobileSearchOpen) return;
         setIsFullscreen(true);
         if (window.innerHeight > window.innerWidth) {
           setIsRotated(true);
@@ -315,7 +316,7 @@ export const KaraokePlayer = ({
         } catch (e) {}
       }
     }
-  }, [playback?.memberFullscreenTrigger, playback?.memberFullscreen, isHost]);
+  }, [playback?.memberFullscreenTrigger, playback?.memberFullscreen, isHost, isMobileSearchOpen]);
 
   // ==========================================
   // HOST REMOTE MUTE / UNMUTE LISTENER
@@ -459,6 +460,43 @@ export const KaraokePlayer = ({
     });
   }, [hostVolume, playback?.memberMuted, isHost, playerReady, safeCall]);
 
+  // A member may finish loading the YouTube iframe after the room is already
+  // playing. Recheck the current room position after the iframe settles so a
+  // late joiner can catch up to the furthest active device without host input.
+  useEffect(() => {
+    if (isHost || !playerReady || playback?.state !== "playing" || !playback?.videoId) return undefined;
+
+    const alignToRoom = () => {
+      if (document.visibilityState !== "visible") return;
+      safeCall((player) => {
+        const currentTime = player.getCurrentTime();
+        if (!Number.isFinite(currentTime)) return;
+
+        const currentServerTime = getServerTime();
+        if (Number.isFinite(playback.anchorServerTime) && currentServerTime < playback.anchorServerTime) return;
+        const targetTime = getFastestPlaybackTarget({
+          currentServerTime,
+          anchorServerTime: playback.anchorServerTime,
+          currentTime,
+          videoId: playback.videoId,
+          seekTrigger: playback.seekTrigger,
+          peerPositions: peerPositionsRef.current
+        });
+        const diff = targetTime - currentTime;
+        setCurrentDiff(diff);
+
+        if (diff > 0.75) {
+          player.seekTo(targetTime, true);
+          lastSyncSeekAtRef.current = Date.now();
+          setSyncStatus("Đã đồng bộ với phòng");
+        }
+      });
+    };
+
+    const timers = [900, 2200].map((delay) => setTimeout(alignToRoom, delay));
+    return () => timers.forEach(clearTimeout);
+  }, [isHost, playerReady, playback?.state, playback?.videoId, playback?.anchorServerTime, playback?.seekTrigger, safeCall]);
+
   // An explicit host seek is intentional, so reset every device to that point.
   useEffect(() => {
     if (!playerReady || !playback?.seekTrigger || playback.seekTrigger === lastSeekTriggerRef.current) return;
@@ -515,7 +553,7 @@ export const KaraokePlayer = ({
         // especially immediately after a background tab becomes active again.
         // Correct larger gaps once, then allow the player time to settle.
         const now = Date.now();
-        if (diff > 1.5 && now - lastSyncSeekAtRef.current > 4000) {
+        if (diff > 0.75 && now - lastSyncSeekAtRef.current > 1500) {
           player.seekTo(targetTime, true);
           lastSyncSeekAtRef.current = now;
           setSyncStatus("Đã căn lại video");
@@ -595,6 +633,21 @@ export const KaraokePlayer = ({
     }
   };
 
+  const syncDelta = Math.abs(currentDiff);
+  const syncIndicator = syncStatus.startsWith("Lỗi")
+    ? { color: "bg-red-500", label: "Lỗi tải video" }
+    : !playerReady || syncStatus === "Đang kết nối..." || syncStatus === "Đang căn cho khớp..."
+      ? { color: "bg-yellow-400", label: "Đang đồng bộ" }
+      : playback?.state !== "playing"
+        ? { color: "bg-emerald-400", label: "Đang tạm dừng" }
+        : syncDelta > 2
+          ? { color: "bg-red-500", label: "Lệch trên 2 giây" }
+          : syncDelta > 1
+            ? { color: "bg-orange-400", label: "Lệch từ 1 đến 2 giây" }
+            : syncDelta > 0.4
+              ? { color: "bg-yellow-400", label: "Lệch từ 0,4 đến 1 giây" }
+              : { color: "bg-emerald-400", label: "Đồng bộ ổn định" };
+
   if (!playback?.videoId) {
     return (
       <div className="w-full aspect-video bg-slate-900/90 rounded-2xl md:rounded-3xl border border-slate-800 flex flex-col items-center justify-center p-6 text-center shadow-2xl">
@@ -659,9 +712,13 @@ export const KaraokePlayer = ({
 
           {/* Sync status overlay badge (hidden in fullscreen for cleaner view) */}
           {!isHost && !isFullscreen && (
-            <div className="absolute top-3 left-3 pointer-events-none flex items-center gap-1.5 px-3 py-1.5 bg-black/80 backdrop-blur-md rounded-full border border-white/20 text-xs text-white z-30 shadow-xl">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 sync-live"></span>
-              <span className="font-mono text-emerald-300 font-bold">{syncStatus}</span>
+            <div
+              role="status"
+              aria-label={`Trạng thái đồng bộ: ${syncIndicator.label}`}
+              title={`Trạng thái đồng bộ: ${syncIndicator.label}`}
+              className="absolute top-3 left-3 pointer-events-none z-30"
+            >
+              <span aria-hidden="true" className={`block w-3 h-3 rounded-full transition-colors ${syncIndicator.color}`}></span>
             </div>
           )}
 
@@ -683,6 +740,7 @@ export const KaraokePlayer = ({
             {isFullscreen && (
               <button
                 onClick={requestNativeFullscreen}
+                aria-label="Bật toàn màn hình trình duyệt"
                 title="Toàn màn hình trình duyệt"
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md text-white border border-white/20 text-xs font-semibold shadow-xl transition active:scale-95"
               >
@@ -695,7 +753,7 @@ export const KaraokePlayer = ({
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? "Thu nhỏ màn hình" : "Phóng to toàn màn hình"}
-              className={`${isMobileSearchOpen ? "hidden lg:flex" : "flex"} items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-xl transition active:scale-95 ${
                 isFullscreen
                   ? "bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700"
                   : "bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"
@@ -718,6 +776,7 @@ export const KaraokePlayer = ({
             {!isHost && (
               <button
                 onClick={toggleMute}
+                aria-label={isMuted ? "Bật tiếng" : "Tắt tiếng"}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-bold shadow-xl transition active:scale-95 ${
                   isMuted
                     ? "bg-rose-500 text-white animate-bounce"

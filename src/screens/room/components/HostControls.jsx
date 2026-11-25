@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { rtdb, ref, update, getServerTime } from "../../../firebase";
 
+const createAdvanceToken = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
 export const HostControls = ({
   roomId,
   playback,
@@ -23,23 +25,40 @@ export const HostControls = ({
 }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [scrubValue, setScrubValue] = useState(null);
+
+  useEffect(() => {
+    setDuration(0);
+    setScrubValue(null);
+  }, [playback?.videoId]);
 
   // Poll video time for progress bar display
   useEffect(() => {
     const timer = setInterval(() => {
       if (playback?.state === "playing" && playback?.anchorServerTime) {
+        const playerDuration = playerRef?.current?.getDuration?.();
+        if (Number.isFinite(playerDuration) && playerDuration > 0) {
+          setDuration((previous) => Math.abs(previous - playerDuration) > 0.5 ? playerDuration : previous);
+        }
         const playerTime = playerRef?.current?.getCurrentTime?.();
         const cur = Number.isFinite(playerTime)
           ? Math.max(0, playerTime)
           : Math.max(0, (getServerTime() - playback.anchorServerTime) / 1000);
         setCurrentTime(cur);
       } else if (playback?.state === "paused" && typeof playback?.pausedAt === "number") {
+        const playerDuration = playerRef?.current?.getDuration?.();
+        if (Number.isFinite(playerDuration) && playerDuration > 0) {
+          setDuration((previous) => Math.abs(previous - playerDuration) > 0.5 ? playerDuration : previous);
+        }
         setCurrentTime(playback.pausedAt);
+      } else if (!playback?.videoId) {
+        setDuration(0);
+        setCurrentTime(0);
       }
     }, 500);
 
     return () => clearInterval(timer);
-  }, [playback?.state, playback?.anchorServerTime, playback?.pausedAt]);
+  }, [playback?.videoId, playback?.state, playback?.anchorServerTime, playback?.pausedAt]);
 
   const handlePlay = async () => {
     if (!roomId || !playback?.videoId) return;
@@ -52,7 +71,8 @@ export const HostControls = ({
     await update(ref(rtdb, `rooms/${roomId}/playback`), {
       state: "playing",
       anchorServerTime: anchor,
-      pausedAt: tVideo
+      pausedAt: tVideo,
+      advanceToken: createAdvanceToken()
     });
   };
 
@@ -64,7 +84,8 @@ export const HostControls = ({
 
     await update(ref(rtdb, `rooms/${roomId}/playback`), {
       state: "paused",
-      pausedAt: tVideo
+      pausedAt: tVideo,
+      advanceToken: createAdvanceToken()
     });
   };
 
@@ -79,12 +100,14 @@ export const HostControls = ({
       await update(ref(rtdb, `rooms/${roomId}/playback`), {
         anchorServerTime: anchor,
         pausedAt: target,
-        seekTrigger: nowServer
+        seekTrigger: nowServer,
+        advanceToken: createAdvanceToken()
       });
     } else {
       await update(ref(rtdb, `rooms/${roomId}/playback`), {
         pausedAt: target,
-        seekTrigger: nowServer
+        seekTrigger: nowServer,
+        advanceToken: createAdvanceToken()
       });
     }
   };
@@ -134,6 +157,13 @@ export const HostControls = ({
   };
 
   const hasVideo = Boolean(playback?.videoId);
+  const displayedTime = scrubValue ?? currentTime;
+  const sliderMax = duration > 0 ? duration : Math.max(currentTime + 60, 300);
+  const commitScrub = () => {
+    if (scrubValue === null) return;
+    handleSeek(scrubValue);
+    setScrubValue(null);
+  };
   const isPlaying = playback?.state === "playing" && hasVideo;
   const isMemberFs = Boolean(playback?.memberFullscreen);
   const isMemberMuted = Boolean(playback?.memberMuted);
@@ -143,16 +173,25 @@ export const HostControls = ({
       {/* Top row: Progress bar */}
       <div className="flex items-center gap-3">
         <span className="font-mono text-xs text-red-400 w-10 text-right">
-          {formatTime(currentTime)}
+          {formatTime(displayedTime)}
         </span>
         <input
           type="range"
           min="0"
-          max={Math.max(currentTime + 60, 300)}
-          value={currentTime}
-          onChange={(e) => handleSeek(parseFloat(e.target.value))}
+          max={Math.max(sliderMax, 1)}
+          value={Math.min(displayedTime, sliderMax)}
+          disabled={!hasVideo || duration <= 0}
+          aria-label="Vị trí phát"
+          aria-valuetext={`${formatTime(displayedTime)} trên ${formatTime(duration)}`}
+          onChange={(e) => setScrubValue(parseFloat(e.target.value))}
+          onPointerUp={commitScrub}
+          onKeyUp={commitScrub}
+          onBlur={commitScrub}
           className="flex-1 accent-red-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
         />
+        <span className="font-mono text-xs text-slate-400 w-10">
+          {formatTime(duration)}
+        </span>
         <button
           onClick={handleForceResync}
           title="Căn lại video trên tất cả điện thoại"
@@ -169,6 +208,7 @@ export const HostControls = ({
           {/* Rewind 5s */}
           <button
             onClick={() => handleSeek(currentTime - 5)}
+            aria-label="Lùi 5 giây"
             disabled={!hasVideo}
             className="w-10 h-10 sm:w-auto sm:h-auto p-2 sm:p-2.5 flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition disabled:opacity-40 disabled:pointer-events-none"
             title="Lùi 5 giây"
@@ -180,6 +220,7 @@ export const HostControls = ({
           {isPlaying ? (
             <button
               onClick={handlePause}
+              aria-label="Tạm dừng"
               disabled={!hasVideo}
               className="min-h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-95 text-xs sm:text-sm disabled:opacity-40 disabled:pointer-events-none"
             >
@@ -189,6 +230,7 @@ export const HostControls = ({
           ) : (
             <button
               onClick={handlePlay}
+              aria-label="Phát nhạc"
               disabled={!hasVideo}
               className="min-h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/25 transition active:scale-95 text-xs sm:text-sm disabled:opacity-40 disabled:pointer-events-none"
             >
@@ -200,6 +242,7 @@ export const HostControls = ({
           {/* Forward 5s */}
           <button
             onClick={() => handleSeek(currentTime + 5)}
+            aria-label="Tiến 5 giây"
             disabled={!hasVideo}
             className="w-10 h-10 sm:w-auto sm:h-auto p-2 sm:p-2.5 flex items-center justify-center text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl transition disabled:opacity-40 disabled:pointer-events-none"
             title="Tới 5 giây"
@@ -258,7 +301,7 @@ export const HostControls = ({
 
           {/* Skip to Next Song */}
           <button
-            onClick={onNextSong}
+            onClick={() => onNextSong?.()}
             className="min-h-10 flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-red-300 font-semibold rounded-xl border border-slate-700 transition active:scale-95 text-xs sm:text-sm"
           >
             <span>Qua bài</span>

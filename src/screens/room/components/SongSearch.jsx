@@ -445,6 +445,7 @@ export const SongSearch = ({
             <div className="relative">
               <input
                 type="text"
+                aria-label="Tìm bài hát hoặc dán liên kết YouTube"
                 placeholder="Tên bài hát... hoặc dán link YouTube"
                 value={searchQuery}
                 onChange={(e) => { setSuggestionsDismissed(false); setSearchQuery(e.target.value); }}
@@ -452,6 +453,7 @@ export const SongSearch = ({
               />
               <button
                 type="submit"
+                aria-label="Tìm kiếm"
                 disabled={isSearching || !searchQuery.trim()}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-40"
               >
@@ -560,6 +562,7 @@ export const SongSearch = ({
                     )}
                     <button
                       onClick={() => handleAdd(item)}
+                      aria-label={`${isJustAdded ? "Đã thêm" : "Thêm vào danh sách chờ"}: ${item.title}`}
                       title="Thêm vào danh sách chờ"
                         className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition ${
                         isJustAdded
@@ -634,6 +637,7 @@ export const SongSearch = ({
             <div className="relative">
               <input
                 type="text"
+                aria-label="Liên kết YouTube"
                 placeholder="Dán link (VD: youtube.com/watch?v=... hoặc youtu.be/...)"
                 value={urlInput}
                 onChange={handleUrlChange}
@@ -643,6 +647,7 @@ export const SongSearch = ({
                 <button
                   type="button"
                   onClick={handlePasteClipboard}
+                  aria-label="Dán liên kết từ clipboard"
                   title="Dán từ Clipboard"
                   className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition text-[10px]"
                 >

@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, Copy, Check, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 
 export const QRCodeModal = ({ isOpen, onClose, roomId }) => {
   const [copied, setCopied] = useState(false);
+  const dialogRef = useRef(null);
+  useModalAccessibility(isOpen && Boolean(roomId), onClose, dialogRef);
   if (!isOpen || !roomId) return null;
 
   const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
@@ -32,15 +35,16 @@ export const QRCodeModal = ({ isOpen, onClose, roomId }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center relative">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="qr-modal-title" tabIndex={-1} className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center relative">
         <button
           onClick={onClose}
+          aria-label="Đóng mã QR"
           className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="font-bold text-lg text-white mb-1">Mã QR Quét Vào Phòng</h3>
+        <h3 id="qr-modal-title" className="font-bold text-lg text-white mb-1">Mã QR Quét Vào Phòng</h3>
         <p className="text-xs text-slate-400 mb-5">
           Dùng camera điện thoại quét mã này để vào phòng ngay
         </p>

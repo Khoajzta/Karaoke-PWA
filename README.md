@@ -53,13 +53,13 @@ VITE_YOUTUBE_API_KEY=AIzaSy...
 ```
 
 ### 3. Cấu hình Firebase Realtime Database Rules
-Rules đã được giới hạn theo vai trò trong `database.rules.json` và được tham chiếu từ `firebase.json`. Chọn đúng Firebase project bằng Firebase CLI, sau đó triển khai Rules cùng Cloud Functions:
+Rules đã được giới hạn theo vai trò trong `database.rules.json` và được tham chiếu từ `firebase.json`. Chọn đúng Firebase project bằng Firebase CLI, sau đó triển khai Rules:
 
 ```bash
-firebase deploy --only database,functions
+firebase deploy --only database,hosting
 ```
 
-Phòng chỉ cho tài khoản đã xác thực đọc; host/co-host điều khiển playback và hàng chờ; member chỉ cập nhật presence của chính họ và bài do họ thêm. Cloud Function xử lý yêu cầu chuyển bài để member vẫn có thể giữ hàng chờ chạy khi host ở chế độ nền. Không thay Rules bằng quyền ghi chung `auth != null` ở nhánh `rooms`.
+Phòng chỉ cho tài khoản đã xác thực đọc; host/co-host điều khiển playback và hàng chờ; member chỉ cập nhật presence của chính họ, bài do họ thêm và yêu cầu chuyển bài khi video hiện tại kết thúc. Rules giới hạn yêu cầu vào bài có trong hàng chờ của video hiện tại, còn transaction playback đảm bảo chỉ một thiết bị thắng. Không thay Rules bằng quyền ghi chung `auth != null` ở nhánh `rooms`.
 
 Kết quả tìm kiếm được dùng chung qua Realtime Database và lưu tối đa 48 giờ. Nếu dự án đã có Rules riêng, hãy gộp các nhánh cần thiết vào `database.rules.json` trước khi triển khai để giữ lại quyền cho những tính năng khác của dự án.
 

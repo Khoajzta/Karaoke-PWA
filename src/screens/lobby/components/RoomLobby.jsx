@@ -76,6 +76,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
           state: "idle",
           anchorServerTime: null,
           pausedAt: 0,
+          advanceToken: "",
           memberMuted: false
         }
       };
@@ -281,9 +282,9 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white flex flex-wrap items-center gap-2">
                 Vào Phòng Đang Hát
-                <span className="text-[10px] font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full uppercase border border-slate-700">
+                <span className="text-[10px] font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full uppercase border border-slate-700 whitespace-nowrap flex-shrink-0">
                   Người tham gia
                 </span>
               </h2>
@@ -294,10 +295,11 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
 
             <form onSubmit={handleJoinRoom} className="space-y-3 pt-2">
               <div>
-                <label className="block text-xs text-slate-400 mb-1 font-medium">
+                <label htmlFor="room-code" className="block text-xs text-slate-400 mb-1 font-medium">
                   Nhập mã phòng 6 ký tự
                 </label>
                 <input
+                  id="room-code"
                   type="text"
                   maxLength={6}
                   placeholder="VD: KARA88"
@@ -309,10 +311,11 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
 
               {(!user || user.isAnonymous) && (
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1 font-medium">
+                  <label htmlFor="guest-name" className="block text-xs text-slate-400 mb-1 font-medium">
                     Tên hiển thị trong phòng (bắt buộc)
                   </label>
                   <input
+                    id="guest-name"
                     type="text"
                     maxLength={32}
                     autoComplete="off"

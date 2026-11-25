@@ -79,6 +79,7 @@ export const Navbar = ({
               <span className="font-mono font-bold text-red-400 tracking-wider text-[11px] sm:text-xs truncate">#{roomId}</span>
               <button
                 onClick={handleCopyRoom}
+                aria-label="Sao chép liên kết mời"
                 title="Sao chép link mời"
                 className="w-8 h-8 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center hover:text-white text-slate-400 transition flex-shrink-0 rounded-lg hover:bg-slate-700/70"
               >
@@ -86,6 +87,7 @@ export const Navbar = ({
               </button>
               {isHost && !isMobile && <button
                 onClick={onOpenQR}
+                aria-label="Mở mã QR phòng"
                 title="Mã QR phòng"
                 className="w-8 h-8 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center hover:text-white text-slate-400 transition flex-shrink-0 rounded-lg hover:bg-slate-700/70"
               >
@@ -97,6 +99,8 @@ export const Navbar = ({
             <div className="relative">
               <button
                 onClick={() => setIsMembersOpen(!isMembersOpen)}
+                aria-label={`Xem thành viên, ${memberCount} người`}
+                aria-expanded={isMembersOpen}
                 title="Bấm để xem danh sách thành viên"
                 className="w-9 h-9 sm:w-auto sm:min-w-10 sm:h-9 flex items-center justify-center gap-1 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 px-1 sm:px-2 rounded-xl text-xs text-white transition active:scale-95 flex-shrink-0"
               >
@@ -114,6 +118,7 @@ export const Navbar = ({
                     </div>
                     <button
                       onClick={() => setIsMembersOpen(false)}
+                      aria-label="Đóng danh sách thành viên"
                       className="text-slate-400 hover:text-white text-xs p-1"
                     >✕</button>
                   </div>
@@ -259,6 +264,7 @@ export const Navbar = ({
           {/* Settings */}
           <button
             onClick={onOpenConfig}
+            aria-label="Cài đặt Firebase và YouTube"
             title="Cài đặt Firebase & YouTube Key"
             className="w-9 h-9 sm:w-auto sm:h-9 sm:px-2 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition border border-slate-700/60"
           >

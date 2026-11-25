@@ -868,6 +868,7 @@ export function App() {
                           onAddToQueue={handleAddToQueue}
                           onUndoAdd={handleUndoQueueAddition}
                           onPlayNow={handlePlayNow}
+                          playback={roomData?.playback}
                           onOpenConfig={() => setIsConfigOpen(true)}
                         />
                       )}
@@ -944,6 +945,7 @@ export function App() {
                         onAddToQueue={handleAddToQueue}
                         onUndoAdd={handleUndoQueueAddition}
                         onPlayNow={handlePlayNow}
+                        playback={roomData?.playback}
                         onOpenConfig={() => setIsConfigOpen(true)}
                       />
                     </div>
@@ -1026,6 +1028,7 @@ export function App() {
                         onAddToQueue={handleAddToQueue}
                         onUndoAdd={handleUndoQueueAddition}
                         onPlayNow={handlePlayNow}
+                        playback={roomData?.playback}
                         onOpenConfig={() => setIsConfigOpen(true)}
                       />
                     )}
@@ -1040,6 +1043,7 @@ export function App() {
                       onAddToQueue={handleAddToQueue}
                       onUndoAdd={handleUndoQueueAddition}
                       onPlayNow={handlePlayNow}
+                      playback={roomData?.playback}
                       onOpenConfig={() => setIsConfigOpen(true)}
                     />
                   </div>

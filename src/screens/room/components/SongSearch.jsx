@@ -4,6 +4,7 @@ import {
   Link as LinkIcon, 
   Plus, 
   Play, 
+  Pause,
   Sparkles, 
   Loader2, 
   AlertCircle,
@@ -64,6 +65,7 @@ export const SongSearch = ({
   onAddToQueue,
   onUndoAdd,
   onPlayNow,
+  playback,
   onOpenConfig,
   onBack
 }) => {
@@ -89,10 +91,15 @@ export const SongSearch = ({
 
   const [addedId, setAddedId] = useState(null);
   const [addedToast, setAddedToast] = useState(null);
+  const [playToast, setPlayToast] = useState(null);
   const [isUndoingAdd, setIsUndoingAdd] = useState(false);
   const addToastTimerRef = useRef(null);
+  const playToastTimerRef = useRef(null);
 
-  useEffect(() => () => clearTimeout(addToastTimerRef.current), []);
+  useEffect(() => () => {
+    clearTimeout(addToastTimerRef.current);
+    clearTimeout(playToastTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -310,6 +317,8 @@ export const SongSearch = ({
     });
     setAddedId(item.videoId);
     setTimeout(() => setAddedId(null), 1500);
+    clearTimeout(playToastTimerRef.current);
+    setPlayToast(null);
     clearTimeout(addToastTimerRef.current);
     setAddedToast({
       title: item.title,
@@ -352,14 +361,28 @@ export const SongSearch = ({
 
   const handleDirectPlay = async (item) => {
     if (!isHost) return;
-    await onPlayNow({
-      videoId: item.videoId,
-      title: item.title,
-      thumbnail: item.thumbnail
-    });
-    if (activeTab === "url") {
-      setUrlInput("");
-      setUrlPreview(null);
+    clearTimeout(addToastTimerRef.current);
+    setAddedToast(null);
+    setAddedId(null);
+    clearTimeout(playToastTimerRef.current);
+    setPlayToast({ title: item.title, loading: true, error: "" });
+    try {
+      await onPlayNow({
+        videoId: item.videoId,
+        title: item.title,
+        thumbnail: item.thumbnail
+      });
+      setPlayToast({ videoId: item.videoId, title: item.title, error: "" });
+      playToastTimerRef.current = setTimeout(() => setPlayToast(null), 5000);
+      if (activeTab === "url") {
+        setUrlInput("");
+        setUrlPreview(null);
+      }
+    } catch (error) {
+      console.error("Could not start the selected song:", error);
+      clearTimeout(playToastTimerRef.current);
+      setPlayToast({ title: item.title, error: "Không thể phát bài hát. Hãy thử lại." });
+      playToastTimerRef.current = setTimeout(() => setPlayToast(null), 6000);
     }
   };
 
@@ -494,6 +517,7 @@ export const SongSearch = ({
 
             {searchResults.map((item) => {
               const isJustAdded = addedId === item.videoId;
+              const isCurrentlyPlaying = playback?.videoId === item.videoId && playback?.state === "playing";
               return (
                 <div
                   key={item.videoId}
@@ -522,11 +546,16 @@ export const SongSearch = ({
                     </button>
                     {isHost && (
                       <button
+                        type="button"
                         onClick={() => handleDirectPlay(item)}
-                        title="Phát ngay lập tức"
-                        className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl shadow-sm active:scale-95 transition"
+                        disabled={isCurrentlyPlaying}
+                        title={isCurrentlyPlaying ? "Đang phát" : "Phát ngay lập tức"}
+                        aria-label={isCurrentlyPlaying ? `Đang phát: ${item.title}` : `Phát ngay: ${item.title}`}
+                        className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm transition ${isCurrentlyPlaying ? "bg-emerald-500 text-white cursor-default" : "bg-amber-500 hover:bg-amber-600 text-slate-950 active:scale-95"}`}
                       >
-                        <Play className="w-3.5 h-3.5 fill-current" />
+                        {isCurrentlyPlaying
+                          ? <Pause className="w-3.5 h-3.5 fill-current" />
+                          : <Play className="w-3.5 h-3.5 fill-current" />}
                       </button>
                     )}
                     <button
@@ -686,10 +715,12 @@ export const SongSearch = ({
                   <button
                     type="button"
                     onClick={() => handleDirectPlay(urlPreview)}
-                    className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-95 text-slate-950 text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg shadow-amber-500/25 transition"
+                    className={`flex items-center justify-center gap-1.5 active:scale-95 text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg transition ${playback?.videoId === urlPreview.videoId && playback?.state === "playing" ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-amber-500/25"}`}
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Phát ngay</span>
+                    {playback?.videoId === urlPreview.videoId && playback?.state === "playing"
+                      ? <Pause className="w-4 h-4 fill-current" />
+                      : <Play className="w-4 h-4 fill-current" />}
+                    <span>{playback?.videoId === urlPreview.videoId && playback?.state === "playing" ? "Đang phát" : "Phát ngay"}</span>
                   </button>
                 )}
               </div>
@@ -727,6 +758,31 @@ export const SongSearch = ({
               <span>{isUndoingAdd ? "Đang hoàn tác..." : "Hoàn tác"}</span>
             </button>
           )}
+        </div>
+      )}
+      {playToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`absolute bottom-3 left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md toast-enter sm:bottom-5 sm:left-auto sm:right-5 sm:w-[min(24rem,calc(100%-2.5rem))] ${
+            playToast.error ? "border-rose-400/40" : "border-emerald-400/40"
+          }`}
+        >
+          <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+            playToast.error ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"
+          }`}>
+            {playToast.error
+              ? <AlertCircle className="h-5 w-5" aria-hidden="true" />
+              : playToast.loading
+                ? <Play className="h-5 w-5 fill-current" aria-hidden="true" />
+                : <Pause className="h-5 w-5 fill-current" aria-hidden="true" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white">
+              {playToast.error || (playToast.loading ? "Đang gửi lệnh phát..." : "Đã gửi lệnh phát")}
+            </p>
+            <p className="truncate text-xs text-slate-300" title={playToast.title}>{playToast.title}</p>
+          </div>
         </div>
       )}
     </div>

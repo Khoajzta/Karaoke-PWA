@@ -155,11 +155,11 @@ export const HostControls = ({
         />
         <button
           onClick={handleForceResync}
-          title="Đồng bộ lại tất cả máy Member"
+          title="Căn lại video trên tất cả điện thoại"
           className="min-h-9 px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center gap-1 transition whitespace-nowrap"
         >
           <RotateCcw className="w-3 h-3 text-emerald-400" />
-          <span>Đồng bộ host</span>
+          <span>Đồng bộ thời gian</span>
         </button>
       </div>
 
@@ -212,7 +212,7 @@ export const HostControls = ({
           {/* Host Remote Mute/Unmute for Member devices */}
           <button
             onClick={handleToggleMemberMute}
-            title={isMemberMuted ? "Bấm để bật tiếng tất cả Member" : "Bấm để tắt tiếng tất cả Member"}
+            title={isMemberMuted ? "Bấm để bật tiếng trên tất cả điện thoại" : "Bấm để tắt tiếng trên tất cả điện thoại"}
             className={`min-h-10 flex items-center justify-center gap-1 px-3 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition active:scale-95 border ${
               isMemberMuted
                 ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
@@ -222,12 +222,12 @@ export const HostControls = ({
             {isMemberMuted ? (
               <>
                 <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-                <span className="hidden sm:inline">Member Muted</span>
+                <span className="hidden sm:inline">Âm thanh đang tắt</span>
               </>
             ) : (
               <>
                 <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-                <span className="hidden sm:inline">Member Audio</span>
+                <span className="hidden sm:inline">Âm thanh đang bật</span>
               </>
             )}
           </button>
@@ -235,7 +235,7 @@ export const HostControls = ({
           {/* Host Remote Fullscreen Command for Member devices */}
           <button
             onClick={handleToggleMemberFullscreen}
-            title={isMemberFs ? "Bấm để thu nhỏ màn hình tất cả Member" : "Bấm để phóng to toàn màn hình tất cả Member"}
+            title={isMemberFs ? "Bấm để thu nhỏ màn hình trên tất cả điện thoại" : "Bấm để phóng to màn hình trên tất cả điện thoại"}
             className={`min-h-10 flex items-center justify-center gap-1 px-3 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition active:scale-95 border ${
               isMemberFs
                 ? "bg-red-500 text-white border-red-400 shadow-lg shadow-red-500/30"
@@ -246,12 +246,12 @@ export const HostControls = ({
             {isMemberFs ? (
               <>
                 <Minimize2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline">Thu Member</span>
+                <span className="hidden sm:inline">Thu nhỏ màn hình</span>
               </>
             ) : (
               <>
                 <Maximize2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline">Full Member</span>
+                <span className="hidden sm:inline">Phóng to màn hình</span>
               </>
             )}
           </button>

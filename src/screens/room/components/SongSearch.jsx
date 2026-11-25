@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Mic,
   Heart,
-  ChevronLeft
+  ChevronLeft,
+  Undo2
 } from "lucide-react";
 import { extractYouTubeId, fetchYouTubeOEmbed, searchYouTubeAPI } from "../../../utils/youtube";
 import { useAuth } from "../../../context/AuthContext";
@@ -61,6 +62,7 @@ const fetchYouTubeSuggestions = (query, signal) => new Promise((resolve, reject)
 export const SongSearch = ({
   isHost,
   onAddToQueue,
+  onUndoAdd,
   onPlayNow,
   onOpenConfig,
   onBack
@@ -86,6 +88,11 @@ export const SongSearch = ({
   const [urlError, setUrlError] = useState("");
 
   const [addedId, setAddedId] = useState(null);
+  const [addedToast, setAddedToast] = useState(null);
+  const [isUndoingAdd, setIsUndoingAdd] = useState(false);
+  const addToastTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(addToastTimerRef.current), []);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -220,7 +227,7 @@ export const SongSearch = ({
     // Normal query search via YouTube API
     const apiKey = localStorage.getItem("yt_api_key") || import.meta.env.VITE_YOUTUBE_API_KEY;
     if (!apiKey) {
-      setSearchError("Chưa có YouTube API Key! Bạn có thể chuyển sang tab 'Dán Link' hoặc dán thẳng URL YouTube vào đây mà không cần Key.");
+      setSearchError("Tính năng tìm bài hát chưa được bật. Bạn vẫn có thể dán link YouTube để thêm bài hát.");
       return;
     }
 
@@ -298,7 +305,7 @@ export const SongSearch = ({
   };
 
   const handleAdd = async (item) => {
-    await onAddToQueue({
+    const queuedItem = await onAddToQueue({
       videoId: item.videoId,
       title: item.title,
       thumbnail: item.thumbnail,
@@ -307,10 +314,43 @@ export const SongSearch = ({
     });
     setAddedId(item.videoId);
     setTimeout(() => setAddedId(null), 1500);
+    clearTimeout(addToastTimerRef.current);
+    setAddedToast({
+      title: item.title,
+      position: queuedItem?.position ?? queuedItem?.order,
+      queueId: queuedItem?.id,
+      error: ""
+    });
+    addToastTimerRef.current = setTimeout(() => setAddedToast(null), 7000);
     // clear URL preview if added from url tab
     if (activeTab === "url") {
       setUrlInput("");
       setUrlPreview(null);
+    }
+  };
+
+  const handleUndoAdd = async () => {
+    if (!addedToast?.queueId || isUndoingAdd) return;
+    try {
+      setIsUndoingAdd(true);
+      const undone = await onUndoAdd?.(addedToast.queueId);
+      if (undone) {
+        clearTimeout(addToastTimerRef.current);
+        setAddedToast(null);
+        setAddedId(null);
+      } else {
+        setAddedToast((current) => current ? {
+          ...current,
+          error: "Bài hát đã được phát hoặc không còn trong hàng chờ."
+        } : current);
+      }
+    } catch (error) {
+      setAddedToast((current) => current ? {
+        ...current,
+        error: "Chưa thể hoàn tác. Vui lòng thử lại."
+      } : current);
+    } finally {
+      setIsUndoingAdd(false);
     }
   };
 
@@ -328,7 +368,7 @@ export const SongSearch = ({
   };
 
   return (
-    <div className={`${onBack ? "mobile-search-screen" : ""} bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-5 flex flex-col h-full shadow-xl overflow-hidden`}>
+    <div className={`${onBack ? "mobile-search-screen" : ""} relative bg-slate-900/90 border border-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-5 flex flex-col h-full shadow-xl overflow-hidden`}>
       {onBack && (
         <button
           type="button"
@@ -435,12 +475,12 @@ export const SongSearch = ({
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p>{searchError}</p>
-                {searchError.includes("YouTube API Key") && (
+                {searchError.includes("tìm bài hát") && (
                   <button
                     onClick={onOpenConfig}
                     className="text-red-400 underline font-semibold mt-1 block"
                   >
-                    Bấm vào đây để cài đặt YouTube API Key
+                    Mở cài đặt tìm bài hát
                   </button>
                 )}
               </div>
@@ -662,6 +702,34 @@ export const SongSearch = ({
             <p className="text-[11px] text-slate-500 text-center py-4">
               💡 Dán bất kỳ link YouTube nào vào đây để nạp bài mà không tốn quota API.
             </p>
+          )}
+        </div>
+      )}
+      {addedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute bottom-3 left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-auto sm:right-5 sm:w-[min(24rem,calc(100%-2.5rem))]"
+        >
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+            <Check className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white">
+              {addedToast.error || `Đã thêm vào hàng chờ${addedToast.position ? ` — vị trí số ${addedToast.position}` : ""}`}
+            </p>
+            <p className="truncate text-xs text-slate-300" title={addedToast.title}>{addedToast.title}</p>
+          </div>
+          {!addedToast.error && addedToast.queueId && (
+            <button
+              type="button"
+              onClick={handleUndoAdd}
+              disabled={isUndoingAdd}
+              className="flex min-h-10 flex-shrink-0 items-center gap-1.5 rounded-xl border border-white/15 px-3 text-xs font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
+            >
+              <Undo2 className="h-4 w-4" aria-hidden="true" />
+              <span>{isUndoingAdd ? "Đang hoàn tác..." : "Hoàn tác"}</span>
+            </button>
           )}
         </div>
       )}

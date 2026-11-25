@@ -48,8 +48,8 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base">Cấu hình Firebase & YouTube</h3>
-              <p className="text-xs text-slate-400">Kết nối Firebase RTDB và YouTube Data API</p>
+              <h3 className="font-bold text-white text-base">Kết nối ứng dụng</h3>
+              <p className="text-xs text-slate-400">Thiết lập để tạo phòng và tìm bài hát trên YouTube</p>
             </div>
           </div>
           <button
@@ -65,10 +65,10 @@ export const ConfigModal = ({ isOpen, onClose }) => {
           <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
             <div className="flex items-center gap-2 mb-2 text-red-400 font-medium">
               <Key className="w-4 h-4" />
-              <span>YouTube Data API v3 Key (Tùy chọn)</span>
+              <span>Mã tìm kiếm bài hát trên YouTube (không bắt buộc)</span>
             </div>
             <p className="text-xs text-slate-400 mb-2">
-              Dùng để tìm kiếm bài hát trực tiếp. Nếu không có key, bạn vẫn có thể dán trực tiếp link YouTube bất kỳ mà không tốn quota!
+              Nhập mã do người quản lý ứng dụng cung cấp để tìm bài hát. Nếu chưa có, bạn vẫn có thể dán link YouTube.
             </p>
             <input
               type="text"
@@ -84,13 +84,13 @@ export const ConfigModal = ({ isOpen, onClose }) => {
             <div className="flex items-center justify-between">
               <span className="font-semibold text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                Firebase Realtime Database Config
+                Nơi lưu thông tin các phòng
               </span>
-              <span className="text-[11px] text-red-400">Bắt buộc để đồng bộ</span>
+              <span className="text-[11px] text-red-400">Cần thiết để mọi người cùng vào phòng</span>
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">databaseURL * (URL của RTDB)</label>
+              <label className="block text-xs text-slate-400 mb-1">Địa chỉ dữ liệu phòng * (databaseURL)</label>
               <input
                 type="text"
                 placeholder="https://your-app-default-rtdb.firebaseio.com"
@@ -103,7 +103,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">apiKey *</label>
+                <label className="block text-xs text-slate-400 mb-1">Mã kết nối * (apiKey)</label>
                 <input
                   type="text"
                   placeholder="AIzaSy..."
@@ -115,7 +115,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">projectId *</label>
+                <label className="block text-xs text-slate-400 mb-1">Mã dự án * (projectId)</label>
                 <input
                   type="text"
                   placeholder="karaoke-sync-demo"
@@ -129,7 +129,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">authDomain</label>
+                <label className="block text-xs text-slate-400 mb-1">Địa chỉ đăng nhập (authDomain)</label>
                 <input
                   type="text"
                   placeholder="your-app.firebaseapp.com"
@@ -140,7 +140,7 @@ export const ConfigModal = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">appId</label>
+                <label className="block text-xs text-slate-400 mb-1">Mã ứng dụng (appId)</label>
                 <input
                   type="text"
                   placeholder="1:123456789:web:abcdef..."

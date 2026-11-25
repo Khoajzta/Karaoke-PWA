@@ -240,7 +240,7 @@ export function App() {
       (error) => {
         setRoomLoading(false);
         console.error("RTDB Room Listener Error:", error);
-        setRoomError(error.message || "Lỗi đọc dữ liệu phòng từ Firebase RTDB");
+        setRoomError(error.message || "Không thể tải thông tin phòng. Hãy kiểm tra kết nối rồi thử lại.");
       }
     );
 
@@ -518,7 +518,7 @@ export function App() {
       : 0;
 
     const queueRef = ref(rtdb, `rooms/${currentRoomId}/queue`);
-    await push(queueRef, {
+    const queueEntry = await push(queueRef, {
       videoId: song.videoId,
       title: song.title,
       thumbnail: song.thumbnail,
@@ -527,6 +527,16 @@ export function App() {
       order: maxOrder + 1,
       createdAt: getServerTime()
     });
+    return { id: queueEntry.key, order: maxOrder + 1, position: queueItems.length + 1 };
+  };
+
+  const handleUndoQueueAddition = async (itemId) => {
+    if (!currentRoomId || !user?.uid || !itemId) return false;
+    const itemRef = ref(rtdb, `rooms/${currentRoomId}/queue/${itemId}`);
+    const snapshot = await get(itemRef);
+    if (!snapshot.exists() || snapshot.val()?.addedByUid !== user.uid) return false;
+    await remove(itemRef);
+    return true;
   };
 
   // Host: Play a song immediately (Play Now)
@@ -639,7 +649,7 @@ export function App() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-center p-4">
         <div className="w-12 h-12 rounded-full border-4 border-red-500/20 border-t-red-500 animate-spin mb-4"></div>
-        <p className="text-sm font-semibold text-slate-300">Đang đồng bộ phiên đăng nhập...</p>
+        <p className="text-sm font-semibold text-slate-300">Đang mở ứng dụng...</p>
       </div>
     );
   }
@@ -692,7 +702,7 @@ export function App() {
               Đang kết nối phòng {currentRoomId}...
             </h3>
             <p className="text-xs text-slate-400 max-w-sm">
-              Đang đồng bộ trạng thái video và dữ liệu thời gian thực từ Firebase
+              Đang kết nối với phòng hát và tải video
             </p>
           </div>
         ) : roomError ? (
@@ -842,6 +852,7 @@ export function App() {
                           isHost={true}
                           onBack={() => setHostMobileTab("queue")}
                           onAddToQueue={handleAddToQueue}
+                          onUndoAdd={handleUndoQueueAddition}
                           onPlayNow={handlePlayNow}
                           onOpenConfig={() => setIsConfigOpen(true)}
                         />
@@ -917,6 +928,7 @@ export function App() {
                       <SongSearch
                         isHost={true}
                         onAddToQueue={handleAddToQueue}
+                        onUndoAdd={handleUndoQueueAddition}
                         onPlayNow={handlePlayNow}
                         onOpenConfig={() => setIsConfigOpen(true)}
                       />
@@ -998,6 +1010,7 @@ export function App() {
                         isHost={false}
                         onBack={() => setMobileTab("queue")}
                         onAddToQueue={handleAddToQueue}
+                        onUndoAdd={handleUndoQueueAddition}
                         onPlayNow={handlePlayNow}
                         onOpenConfig={() => setIsConfigOpen(true)}
                       />
@@ -1011,6 +1024,7 @@ export function App() {
                     <SongSearch
                       isHost={false}
                       onAddToQueue={handleAddToQueue}
+                      onUndoAdd={handleUndoQueueAddition}
                       onPlayNow={handlePlayNow}
                       onOpenConfig={() => setIsConfigOpen(true)}
                     />

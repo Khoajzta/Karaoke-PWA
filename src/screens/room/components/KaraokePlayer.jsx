@@ -436,7 +436,7 @@ export const KaraokePlayer = ({
         setSyncStatus("Tạm dừng");
       } else if (playback.state === "playing") {
         applySharedPlayback();
-        setSyncStatus("Đang đồng bộ...");
+        setSyncStatus("Đang căn cho khớp...");
       }
     });
   }, [playback?.state, playback?.pausedAt, playback?.anchorServerTime, playback?.videoId, playerReady, safeCall, applySharedPlayback]);
@@ -518,9 +518,9 @@ export const KaraokePlayer = ({
         if (diff > 1.5 && now - lastSyncSeekAtRef.current > 4000) {
           player.seekTo(targetTime, true);
           lastSyncSeekAtRef.current = now;
-          setSyncStatus(`Bắt kịp thiết bị nhanh nhất (+${diff.toFixed(2)}s)`);
+          setSyncStatus("Đã căn lại video");
         } else {
-          setSyncStatus("Đang theo thiết bị nhanh nhất");
+          setSyncStatus("Đang căn lại thời gian phát");
         }
       });
     }, 1000);
@@ -607,7 +607,7 @@ export const KaraokePlayer = ({
         <p className="text-xs md:text-sm text-slate-400 max-w-sm mb-4">
           {isHost
             ? "Tìm kiếm bài hát hoặc dán link YouTube bên cạnh để bắt đầu hát ngay!"
-            : "Đang chờ Host chọn bài hát đầu tiên..."}
+            : "Đang chờ chủ phòng chọn bài hát đầu tiên..."}
         </p>
       </div>
     );
@@ -687,7 +687,7 @@ export const KaraokePlayer = ({
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md text-white border border-white/20 text-xs font-semibold shadow-xl transition active:scale-95"
               >
                 <Expand className="w-3.5 h-3.5 text-red-400" />
-                <span className="hidden sm:inline">Tràn viền</span>
+                <span className="hidden sm:inline">Xem kín màn hình</span>
               </button>
             )}
 
@@ -735,7 +735,7 @@ export const KaraokePlayer = ({
             <div className="absolute bottom-4 left-4 right-4 z-[110] flex items-center justify-between gap-3 pointer-events-none">
               <div className="bg-black/85 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 max-w-[50%] sm:max-w-md shadow-2xl">
                 {titleToDisplay && !isUpcomingSongNotice && <h3 className="text-white font-extrabold text-xs sm:text-sm truncate">{titleToDisplay}</h3>}
-                <p className="text-[10px] sm:text-[11px] text-red-400 font-semibold mt-0.5">🎤 Karaoke Realtime Sync</p>
+                <p className="text-[10px] sm:text-[11px] text-red-400 font-semibold mt-0.5">🎤 Cùng hát trên mọi thiết bị</p>
               </div>
             </div>
           )}
@@ -822,14 +822,14 @@ export const KaraokePlayer = ({
                 }`}
               >
                 <Maximize2 className="w-3 h-3" />
-                <span>Auto-Full: {autoFullscreenEnabled ? "Bật" : "Tắt"}</span>
+                <span>Tự phóng to khi chuyển bài: {autoFullscreenEnabled ? "Bật" : "Tắt"}</span>
               </button>
             )}
 
             {/* Host Indicator */}
             {isHost && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700/60">
-                <span className="font-semibold text-slate-300">Màn hình Host</span>
+                <span className="font-semibold text-slate-300">Màn hình chủ phòng</span>
               </div>
             )}
           </div>

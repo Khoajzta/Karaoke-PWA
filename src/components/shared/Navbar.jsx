@@ -188,11 +188,11 @@ export const Navbar = ({
 
             {/* Sync badge — desktop only */}
             <div
-              title={`Độ lệch thời gian Firebase: ${offsetMs}ms`}
+              title="Trạng thái phát video trên các thiết bị"
               className="hidden md:flex h-9 items-center gap-1 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-[11px] font-mono text-emerald-400"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 sync-live"></span>
-              <span>Sync {Math.abs(offsetMs)}ms</span>
+              <span>Đang khớp</span>
             </div>
 
             {/* Wake lock — desktop only */}
@@ -202,7 +202,7 @@ export const Navbar = ({
                 className="hidden lg:flex h-9 items-center gap-1 px-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-400"
               >
                 <Zap className="w-3 h-3" />
-                <span>Sáng</span>
+                <span>Luôn sáng</span>
               </div>
             )}
           </div>

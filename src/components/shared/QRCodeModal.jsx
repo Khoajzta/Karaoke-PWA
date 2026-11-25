@@ -42,7 +42,7 @@ export const QRCodeModal = ({ isOpen, onClose, roomId }) => {
 
         <h3 className="font-bold text-lg text-white mb-1">Mã QR Quét Vào Phòng</h3>
         <p className="text-xs text-slate-400 mb-5">
-          Member dùng camera điện thoại quét mã này để vào phòng ngay
+          Dùng camera điện thoại quét mã này để vào phòng ngay
         </p>
 
         {/* QR Code Container */}

@@ -186,16 +186,16 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       <div className="text-center mb-10 space-y-3">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Real-time Sync Video Hát Song Ca</span>
+          <span>Hát cùng nhau trên nhiều thiết bị</span>
         </div>
         <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white">
-          Hát Karaoke Đồng Bộ <br className="hidden sm:block" />
+          Karaoke cùng nhau trên mọi thiết bị <br className="hidden sm:block" />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
             Không Độ Trễ Trên Mọi Thiết Bị
           </span>
         </h1>
         <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto">
-          Mở video trên máy tính phòng khách (Host), điện thoại mọi người (Member) cùng xem lời mượt mà theo từng mili-giây.
+          Mở video trên máy tính hoặc TV, mọi người dùng điện thoại để xem lời và chọn bài hát cùng nhau.
         </p>
       </div>
 
@@ -249,11 +249,11 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Tạo Phòng Hát Mới
                 <span className="text-[10px] font-bold bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full uppercase border border-red-500/30">
-                  Host
+                  Chủ phòng
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Dành cho máy tính / TV làm màn hình chính. Bắt buộc đăng nhập Google.
+                Dành cho người mở video và điều khiển buổi hát. Cần đăng nhập Google.
               </p>
             </div>
 
@@ -279,7 +279,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
             className="mt-6 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-red-500/25 transition active:scale-[0.98] disabled:opacity-50 text-sm"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>{loading ? "Đang tạo phòng..." : "Tạo Phòng (Host)"}</span>
+            <span>{loading ? "Đang tạo phòng..." : "Tạo phòng hát"}</span>
           </button>
         </div>
 
@@ -293,11 +293,11 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Vào Phòng Đang Hát
                 <span className="text-[10px] font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full uppercase border border-slate-700">
-                  Member
+                  Người tham gia
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Dành cho điện thoại hoặc tablet để cùng xem lời và chọn bài.
+                Dùng điện thoại hoặc máy tính bảng để xem lời và chọn bài hát.
               </p>
             </div>
 
@@ -353,16 +353,16 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       {/* Feature highlights */}
       <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-center">
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-red-400 font-bold text-sm mb-1">Đồng Bộ Mili-giây</div>
-          <p className="text-xs text-slate-400">Sử dụng Firebase RTDB ServerTimeOffset và thuật toán Rate Adjust mượt mà.</p>
+          <div className="text-red-400 font-bold text-sm mb-1">Video khớp trên mọi thiết bị</div>
+          <p className="text-xs text-slate-400">Mọi người cùng xem video ở gần như một thời điểm.</p>
         </div>
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-red-400 font-bold text-sm mb-1">Mute Thông Minh</div>
-          <p className="text-xs text-slate-400">Tự động tắt tiếng trên điện thoại tránh vọng âm, vượt rào cản Autoplay.</p>
+          <div className="text-red-400 font-bold text-sm mb-1">Âm thanh dễ điều chỉnh</div>
+          <p className="text-xs text-slate-400">Mỗi người có thể tự bật hoặc tắt tiếng trên điện thoại.</p>
         </div>
         <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
-          <div className="text-red-400 font-bold text-sm mb-1">Chống Khóa Màn Hình</div>
-          <p className="text-xs text-slate-400">Tự động kích hoạt Screen Wake Lock giúp điện thoại luôn sáng khi đang hát.</p>
+          <div className="text-red-400 font-bold text-sm mb-1">Giữ màn hình luôn sáng</div>
+          <p className="text-xs text-slate-400">Màn hình điện thoại hạn chế tự tắt khi bạn đang hát.</p>
         </div>
       </div>
     </div>

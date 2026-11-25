@@ -14,10 +14,12 @@ import {
   Check
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
-import { rtdb, ref, set, get, serverTimestamp } from "../../../firebase";
+import { rtdb, ref, get, runTransaction } from "../../../firebase";
+import databaseRules from "../../../../database.rules.json";
 
 export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreateRoom, onClearPendingCreate }) => {
   const { user, isConfigured, loginAsGuest } = useAuth();
+  const rulesText = JSON.stringify(databaseRules, null, 2);
   const [joinCode, setJoinCode] = useState(urlRoomCode || "");
   const [guestName, setGuestName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,14 +64,10 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
       setError("");
       setIsPermissionError(false);
 
-      const roomId = generateRoomCode();
-      const roomRef = ref(rtdb, `rooms/${roomId}`);
-
-      // Initial clean data for brand new room (no forced demo song)
-      await set(roomRef, {
+      const roomData = {
         info: {
           hostUid: user.uid,
-          hostName: user.displayName || (user.isAnonymous ? "Host" : "Host"),
+          hostName: user.displayName || "Host",
           createdAt: Date.now()
         },
         playback: {
@@ -80,7 +78,19 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
           pausedAt: 0,
           memberMuted: false
         }
-      });
+      };
+
+      let roomId = "";
+      let created = false;
+      for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
+        roomId = generateRoomCode();
+        const result = await runTransaction(ref(rtdb, `rooms/${roomId}`), (existingRoom) => {
+          if (existingRoom != null) return;
+          return roomData;
+        });
+        created = result.committed;
+      }
+      if (!created) throw new Error("Không tạo được mã phòng mới. Vui lòng thử lại.");
 
       onJoinRoom(roomId, true);
     } catch (err) {
@@ -165,24 +175,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
   };
 
   const copyRuleSnippet = () => {
-    const rulesJson = JSON.stringify({
-      rules: {
-        rooms: {
-          $roomId: {
-            ".read": true,
-            ".write": "auth != null"
-          }
-        },
-        searchCache: {
-          ".read": true,
-          ".indexOn": ["expiresAt"],
-          $cacheKey: {
-            ".write": "auth != null"
-          }
-        }
-      }
-    }, null, 2);
-    navigator.clipboard.writeText(rulesJson);
+    navigator.clipboard.writeText(rulesText);
     setCopiedRule(true);
     setTimeout(() => setCopiedRule(false), 2000);
   };
@@ -217,23 +210,7 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
             Vào <strong>Firebase Console</strong> &gt; <strong>Realtime Database</strong> &gt; tab <strong>Rules</strong>, dán đoạn cấu hình sau rồi bấm <strong>Publish (Xuất bản)</strong>:
           </p>
           <div className="relative bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300">
-            <pre>{`{
-  "rules": {
-    "rooms": {
-      "$roomId": {
-        ".read": true,
-        ".write": "auth != null"
-      }
-    },
-    "searchCache": {
-      ".read": true,
-      ".indexOn": ["expiresAt"],
-      "$cacheKey": {
-        ".write": "auth != null"
-      }
-    }
-  }
-}`}</pre>
+            <pre>{rulesText}</pre>
             <button
               onClick={copyRuleSnippet}
               className="absolute right-2 top-2 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 text-[10px]"

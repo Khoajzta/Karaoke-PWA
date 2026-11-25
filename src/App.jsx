@@ -8,9 +8,11 @@ import {
   update, 
   remove, 
   push, 
+  set,
   getServerTime,
   onDisconnect 
 } from "./firebase";
+import databaseRules from "../database.rules.json";
 import { useAuth } from "./context/AuthContext";
 import { requestWakeLock, releaseWakeLock } from "./utils/wakeLock";
 import { Navbar } from "./components/shared/Navbar";
@@ -42,8 +44,9 @@ import {
 } from "lucide-react";
 
 export function App() {
-  const { user, loading: authLoading, isConfigured } = useAuth();
+  const { user, loading: authLoading, isConfigured, logout } = useAuth();
   const hostPlayerRef = useRef(null);
+  const rulesText = JSON.stringify(databaseRules, null, 2);
 
   // App Navigation & Room State
   const [currentRoomId, setCurrentRoomId] = useState(null);
@@ -222,10 +225,6 @@ export function App() {
         } else {
           setRoomError(`Chủ phòng đã rời hoặc phòng "${currentRoomId}" đã được giải tán!`);
           setRoomData(null);
-          setRoomError(null);
-          setCurrentRoomId(null);
-          setCreatedRoomId(null);
-          setGuestRoomName("");
           try {
             const rememberedGuestRoom = JSON.parse(localStorage.getItem("karaoke_guest_room") || "null");
             if (rememberedGuestRoom?.roomId === currentRoomId) {
@@ -234,7 +233,6 @@ export function App() {
           } catch (error) {
             localStorage.removeItem("karaoke_guest_room");
           }
-          window.history.pushState({ path: window.location.pathname }, "", window.location.pathname);
         }
       },
       (error) => {
@@ -263,10 +261,9 @@ export function App() {
 
   // Realtime Presence: Track user in rooms/${currentRoomId}/members/${user.uid}
   useEffect(() => {
-    if (!currentRoomId || !user?.uid || !rtdb) return;
+    if (!currentRoomId || !user?.uid || !rtdb || !roomData?.info?.hostUid) return;
 
     const memberRef = ref(rtdb, `rooms/${currentRoomId}/members/${user.uid}`);
-    const membersRef = ref(rtdb, `rooms/${currentRoomId}/members`);
     const connectedRef = ref(rtdb, ".info/connected");
     const memberData = {
       uid: user.uid,
@@ -296,19 +293,16 @@ export function App() {
         await disconnectRef.remove();
         if (!active || generation !== connectionGeneration) return;
 
-        const result = await runTransaction(membersRef, (members) => {
-          if (members?._state === "deleting") return;
-          return { ...(members || {}), [user.uid]: memberData };
-        });
-        if (!active || generation !== connectionGeneration) {
-          if (result.committed) await remove(memberRef);
+        const stateSnapshot = await get(ref(rtdb, `rooms/${currentRoomId}/members/_state`));
+        if (stateSnapshot.exists()) {
+          setRoomError("Phòng này đang được đóng vì không còn người tham gia.");
           return;
         }
-        if (!result.committed && active) {
-          setRoomError("Phòng này đang được đóng vì không còn người tham gia.");
-        }
+        await set(memberRef, memberData);
+        if (!active || generation !== connectionGeneration) await remove(memberRef);
       } catch (error) {
         console.error("Failed to register room presence:", error);
+        if (active) setRoomError(error.message || "Không thể tham gia phòng. Hãy kiểm tra kết nối rồi thử lại.");
       } finally {
         if (generation === connectionGeneration) registering = false;
       }
@@ -320,7 +314,7 @@ export function App() {
       remove(memberRef).catch((error) => console.warn("Failed to clear room presence:", error));
       disconnectRef?.cancel().catch(() => {});
     };
-  }, [currentRoomId, user?.uid, user?.displayName, user?.isAnonymous, guestRoomName, isHost]);
+  }, [currentRoomId, roomData?.info?.hostUid, user?.uid, user?.displayName, user?.isAnonymous, guestRoomName, isHost]);
 
   // Sorted list of current members in room
   const membersList = useMemo(() => {
@@ -392,17 +386,10 @@ export function App() {
         return false;
       }
 
-      const infoRef = ref(rtdb, `rooms/${currentRoomId}/info`);
-      const result = await runTransaction(infoRef, (info) => {
-        const actorIsHost = info?.hostUid === user.uid || Boolean(info?.coHosts?.[user.uid]);
-        if (!info || !actorIsHost || info.hostUid === member.uid || info.coHosts?.[member.uid]) return;
-        return {
-          ...info,
-          coHosts: {
-            ...(info.coHosts || {}),
-            [member.uid]: true
-          }
-        };
+      const coHostRef = ref(rtdb, `rooms/${currentRoomId}/info/coHosts/${member.uid}`);
+      const result = await runTransaction(coHostRef, (isCoHost) => {
+        if (isCoHost === true) return;
+        return true;
       });
 
       if (!result.committed) {
@@ -425,12 +412,10 @@ export function App() {
     }
 
     try {
-      const infoRef = ref(rtdb, `rooms/${currentRoomId}/info`);
-      const result = await runTransaction(infoRef, (info) => {
-        if (info?.hostUid !== user.uid || !info.coHosts?.[member.uid]) return;
-        const coHosts = { ...info.coHosts };
-        delete coHosts[member.uid];
-        return { ...info, coHosts };
+      const coHostRef = ref(rtdb, `rooms/${currentRoomId}/info/coHosts/${member.uid}`);
+      const result = await runTransaction(coHostRef, (isCoHost) => {
+        if (isCoHost !== true) return;
+        return null;
       });
 
       if (!result.committed) {
@@ -457,34 +442,24 @@ export function App() {
   const handleLeaveRoom = async () => {
     const targetRoomId = currentRoomId;
 
-    if (isRoomOwner && targetRoomId) {
+    if (isRoomOwner && targetRoomId && !roomError) {
       const confirmDelete = window.confirm(
         `Bạn là Chủ phòng (Host).\nNếu bạn rời phòng, phòng "${targetRoomId}" sẽ bị XÓA và toàn bộ thành viên sẽ được giải tán.\nBạn có chắc chắn muốn rời và xóa phòng không?`
       );
-      if (!confirmDelete) return;
+      if (!confirmDelete) return false;
 
       try {
         await remove(ref(rtdb, `rooms/${targetRoomId}`));
       } catch (err) {
         console.error("Lỗi khi xóa phòng khỏi RTDB:", err);
         window.alert(err.message || "Không thể giải tán phòng. Vui lòng thử lại.");
-        return;
+        return false;
       }
     }
 
-    if (!isHost && targetRoomId && user?.uid && rtdb) {
+    if (targetRoomId && user?.uid && rtdb && (!isRoomOwner || roomError)) {
       try {
         await remove(ref(rtdb, `rooms/${targetRoomId}/members/${user.uid}`));
-        const membersRef = ref(rtdb, `rooms/${targetRoomId}/members`);
-        const result = await runTransaction(membersRef, (members) => {
-          const activeMembers = Object.entries(members || {})
-            .filter(([key, member]) => key !== "_state" && member != null);
-          if (activeMembers.length > 0) return;
-          return { _state: "deleting" };
-        });
-        if (result.committed) {
-          await remove(ref(rtdb, `rooms/${targetRoomId}`));
-        }
       } catch (err) {
         console.error("Failed to clean up the empty room:", err);
       }
@@ -508,6 +483,12 @@ export function App() {
     }
     const cleanUrl = window.location.pathname;
     window.history.pushState({ path: cleanUrl }, "", cleanUrl);
+    return true;
+  };
+
+  const handleLogout = async () => {
+    if (currentRoomId && !(await handleLeaveRoom())) return;
+    await logout();
   };
 
   // Add song to Queue
@@ -563,54 +544,16 @@ export function App() {
   // in the background. The ended video ID prevents multiple guests from
   // consuming multiple queue items for the same end event.
   const handleNextSong = async (endedAt, endedVideoId) => {
-    if ((!isHost && !endedVideoId) || !currentRoomId) return;
-
+    if (!currentRoomId || !user?.uid) return;
     const expectedVideoId = endedVideoId || (isHost ? roomData?.playback?.videoId : null);
-    const roomRef = ref(rtdb, `rooms/${currentRoomId}`);
-    const result = await runTransaction(roomRef, (room) => {
-      const currentPlayback = room?.playback;
-      if (!currentPlayback) return;
-      if (expectedVideoId && currentPlayback.videoId !== expectedVideoId) return;
-      if (endedVideoId && currentPlayback.state !== "playing") return;
+    if (!expectedVideoId && !isHost) return;
 
-      const nextEntry = Object.entries(room.queue || {})
-        .sort(([, a], [, b]) => (a?.order || 0) - (b?.order || 0))[0];
-
-      if (nextEntry) {
-        const [nextId, nextSong] = nextEntry;
-        const queue = { ...(room.queue || {}) };
-        delete queue[nextId];
-        const nextRoom = {
-          ...room,
-          playback: {
-            ...currentPlayback,
-            videoId: nextSong.videoId,
-            title: nextSong.title,
-            state: "playing",
-            anchorServerTime: getServerTime() + (endedVideoId ? 0 : 3000),
-            pausedAt: 0
-          }
-        };
-        if (Object.keys(queue).length) nextRoom.queue = queue;
-        else delete nextRoom.queue;
-        return nextRoom;
-      }
-
-      return {
-        ...room,
-        playback: {
-          ...currentPlayback,
-          state: "paused",
-          pausedAt: typeof endedAt === "number"
-            ? endedAt
-            : currentPlayback.pausedAt || 0
-        }
-      };
+    const requestRef = push(ref(rtdb, `rooms/${currentRoomId}/advanceRequests`));
+    await set(requestRef, {
+      videoId: expectedVideoId || "__none__",
+      requestedBy: user.uid,
+      ...(typeof endedAt === "number" ? { endedAt } : {})
     });
-
-    if (!result.committed && !isHost) {
-      console.warn("Another room member already advanced the playback.");
-    }
   };
 
   // Host: Reorder Queue items (drag & drop)
@@ -630,24 +573,7 @@ export function App() {
   };
 
   const copyRuleSnippet = () => {
-    const rulesJson = JSON.stringify({
-      rules: {
-        rooms: {
-          $roomId: {
-            ".read": true,
-            ".write": "auth != null"
-          }
-        },
-        searchCache: {
-          ".read": true,
-          ".indexOn": ["expiresAt"],
-          $cacheKey: {
-            ".write": "auth != null"
-          }
-        }
-      }
-    }, null, 2);
-    navigator.clipboard.writeText(rulesJson);
+    navigator.clipboard.writeText(rulesText);
     setCopiedRule(true);
     setTimeout(() => setCopiedRule(false), 2000);
   };
@@ -673,6 +599,7 @@ export function App() {
           onOpenConfig={() => setIsConfigOpen(true)}
           onOpenQR={() => setIsQROpen(true)}
           onLeaveRoom={handleLeaveRoom}
+          onLogout={handleLogout}
           onAddHost={handleAddHost}
           onRemoveHost={handleRemoveHost}
           onSetMemberVolume={handleSetMemberVolume}
@@ -734,23 +661,7 @@ export function App() {
                   Vào <strong>Firebase Console</strong> &gt; Chọn dự án <strong>karaoke-pwa-1221e</strong> &gt; <strong>Realtime Database</strong> &gt; tab <strong>Rules</strong>, dán đoạn rules sau và bấm <strong>Publish</strong>:
                 </p>
                 <div className="relative bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300">
-                  <pre>{`{
-  "rules": {
-    "rooms": {
-      "$roomId": {
-        ".read": true,
-        ".write": "auth != null"
-      }
-    },
-    "searchCache": {
-      ".read": true,
-      ".indexOn": ["expiresAt"],
-      "$cacheKey": {
-        ".write": "auth != null"
-      }
-    }
-  }
-}`}</pre>
+                  <pre>{rulesText}</pre>
                   <button
                     onClick={copyRuleSnippet}
                     className="absolute right-2 top-2 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 text-[10px]"

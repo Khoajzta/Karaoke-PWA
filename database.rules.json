@@ -1,0 +1,52 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('info').child('hostUid').val() === auth.uid) || (data.exists() && data.child('info').child('hostUid').val() === auth.uid && !newData.exists()))",
+        "info": {
+          ".write": "auth != null && data.child('hostUid').val() === auth.uid",
+          "coHosts": {
+            "$memberUid": {
+              ".write": "auth != null && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || (!data.exists() && newData.val() === true && root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true && root.child('rooms').child($roomId).child('members').child($memberUid).exists()))",
+              ".validate": "newData.val() === true"
+            }
+          }
+        },
+        "members": {
+          "$memberUid": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('info').child('hostUid').exists() && ((auth.uid === $memberUid && !root.child('rooms').child($roomId).child('members').child('_state').exists()) || root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true)",
+            ".validate": "newData.hasChildren(['uid', 'name', 'isHost', 'joinedAt']) && newData.child('uid').val() === $memberUid && newData.child('name').isString() && newData.child('joinedAt').isNumber()",
+            "isHost": {
+              ".validate": "newData.val() === (root.child('rooms').child($roomId).child('info').child('hostUid').val() === $memberUid || root.child('rooms').child($roomId).child('info').child('coHosts').child($memberUid).val() === true)"
+            },
+            "playbackPosition": {
+              ".validate": "newData.child('videoId').isString() && newData.child('seconds').isNumber()"
+            }
+          }
+        },
+        "queue": {
+          "$queueId": {
+            ".write": "auth != null && root.child('rooms').child($roomId).child('info').child('hostUid').exists() && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true || (newData.exists() && newData.child('addedByUid').val() === auth.uid) || (!newData.exists() && data.child('addedByUid').val() === auth.uid))",
+            ".validate": "!newData.exists() || (newData.child('videoId').isString() && newData.child('title').isString() && newData.child('addedByUid').isString() && newData.child('order').isNumber())"
+          }
+        },
+        "playback": {
+          ".write": "auth != null && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true)"
+        },
+        "advanceRequests": {
+          "$requestId": {
+            ".write": "auth != null && newData.child('requestedBy').val() === auth.uid && newData.child('videoId').isString() && root.child('rooms').child($roomId).child('info').child('hostUid').exists() && (root.child('rooms').child($roomId).child('info').child('hostUid').val() === auth.uid || root.child('rooms').child($roomId).child('info').child('coHosts').child(auth.uid).val() === true || root.child('rooms').child($roomId).child('members').child(auth.uid).exists())"
+          }
+        }
+      }
+    },
+    "searchCache": {
+      ".read": "auth != null",
+      ".indexOn": ["expiresAt"],
+      "$cacheKey": {
+        ".write": "auth != null"
+      }
+    }
+  }
+}

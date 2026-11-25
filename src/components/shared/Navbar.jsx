@@ -24,6 +24,7 @@ export const Navbar = ({
   onOpenConfig, 
   onOpenQR, 
   onLeaveRoom,
+  onLogout,
   onAddHost,
   onRemoveHost,
   onSetMemberVolume,
@@ -230,28 +231,29 @@ export const Navbar = ({
               </div>
 
               {!user.isAnonymous && (
-                <button onClick={() => logout()} title="Đăng xuất tài khoản Google" aria-label="Đăng xuất tài khoản Google" className="w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500 transition flex items-center justify-center sm:gap-1">
+                <button onClick={() => (onLogout || logout)()} title={roomId ? "Đăng xuất và rời phòng" : "Đăng xuất tài khoản Google"} aria-label={roomId ? "Đăng xuất và rời phòng" : "Đăng xuất tài khoản Google"} className="w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500 transition flex items-center justify-center sm:gap-1">
                   <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[11px] font-semibold">Đăng xuất</span>
-                </button>
-              )}
-
-              {/* Leave button — icon only on mobile */}
-              {roomId && (
-                <button
-                  onClick={onLeaveRoom}
-                  title={isRoomOwner ? "Rời & giải tán phòng" : "Rời phòng"}
-                  className={`w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl transition text-xs flex items-center justify-center sm:gap-1 ${
-                    isRoomOwner
-                      ? "text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/30"
-                      : "text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-700/60"
-                  }`}
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[11px] font-semibold">{isRoomOwner ? "Giải tán" : "Rời"}</span>
+                  <span className="hidden sm:inline text-[11px] font-semibold">{roomId ? "Rời & đăng xuất" : "Đăng xuất"}</span>
                 </button>
               )}
             </>
+          )}
+
+          {/* Keep room exit available if authentication expires while the room is open. */}
+          {roomId && (
+            <button
+              onClick={onLeaveRoom}
+              title={isRoomOwner ? "Rời & giải tán phòng" : "Rời phòng"}
+              aria-label={isRoomOwner ? "Rời và giải tán phòng" : "Rời phòng"}
+              className={`w-9 h-9 sm:w-auto sm:h-9 sm:px-2 rounded-xl transition text-xs flex items-center justify-center sm:gap-1 ${
+                isRoomOwner
+                  ? "text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 border border-rose-500/30"
+                  : "text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-700/60"
+              }`}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline text-[11px] font-semibold">{isRoomOwner ? "Giải tán" : "Rời"}</span>
+            </button>
           )}
 
           {/* Settings */}

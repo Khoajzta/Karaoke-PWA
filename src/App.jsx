@@ -24,6 +24,7 @@ import { QueueList } from "./screens/room/components/QueueList";
 import { QRCodeModal } from "./components/shared/QRCodeModal";
 import { AuthModal } from "./components/shared/AuthModal";
 import { ConfigModal } from "./components/shared/ConfigModal";
+import { AppDialog } from "./components/shared/AppDialog";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { isRoomHost, isRoomOwner as checkRoomOwner } from "./utils/roomRoles";
 import { 
@@ -72,6 +73,34 @@ export function App() {
     title: "Đăng nhập",
     pendingRoomCode: null,
     pendingAction: null
+  });
+  const [dialogConfig, setDialogConfig] = useState(null);
+  const dialogResolverRef = useRef(null);
+
+  const showDialog = (config) => new Promise((resolve) => {
+    dialogResolverRef.current = resolve;
+    setDialogConfig({
+      type: "confirm",
+      title: "Xác nhận",
+      confirmLabel: "Đồng ý",
+      cancelLabel: "Hủy",
+      variant: "default",
+      ...config
+    });
+  });
+
+  const closeDialog = (confirmed = false) => {
+    const resolve = dialogResolverRef.current;
+    dialogResolverRef.current = null;
+    setDialogConfig(null);
+    resolve?.(confirmed);
+  };
+
+  const showAlert = (message, title = "Thông báo") => showDialog({
+    type: "alert",
+    title,
+    message,
+    confirmLabel: "Đóng"
   });
 
   // Mobile Tab switch for Member and Host
@@ -377,15 +406,18 @@ export function App() {
 
   const handleAddHost = async (member) => {
     if (!isHost || !currentRoomId || !user?.uid || !member?.uid || member.uid === user.uid) return false;
-    if (!window.confirm(`Thêm ${member.name || "khách"} làm host? Bạn vẫn giữ quyền host.`)) {
-      return false;
-    }
+    const confirmed = await showDialog({
+      title: "Thêm host?",
+      message: `Thêm ${member.name || "khách"} làm host? Bạn vẫn giữ quyền host.`,
+      confirmLabel: "Thêm host"
+    });
+    if (!confirmed) return false;
 
     try {
       const targetRef = ref(rtdb, `rooms/${currentRoomId}/members/${member.uid}`);
       const targetSnapshot = await get(targetRef);
       if (!targetSnapshot.exists()) {
-        window.alert("Thành viên này đã rời phòng.");
+        await showAlert("Thành viên này đã rời phòng.");
         return false;
       }
 
@@ -396,23 +428,27 @@ export function App() {
       });
 
       if (!result.committed) {
-        window.alert("Không thể thêm host. Người này có thể đã được cấp quyền hoặc quyền host đã thay đổi.");
+        await showAlert("Không thể thêm host. Người này có thể đã được cấp quyền hoặc quyền host đã thay đổi.");
         return false;
       }
 
       return true;
     } catch (error) {
       console.error("Failed to transfer host role:", error);
-      window.alert(error.message || "Không thể chuyển quyền host lúc này.");
+      await showAlert(error.message || "Không thể chuyển quyền host lúc này.");
       return false;
     }
   };
 
   const handleRemoveHost = async (member) => {
     if (!isRoomOwner || !currentRoomId || !user?.uid || !member?.uid || member.uid === user.uid) return false;
-    if (!window.confirm(`Gỡ quyền host của ${member.name || "thành viên"}? Người này vẫn ở lại phòng.`)) {
-      return false;
-    }
+    const confirmed = await showDialog({
+      title: "Gỡ quyền host?",
+      message: `Gỡ quyền host của ${member.name || "thành viên"}? Người này vẫn ở lại phòng.`,
+      confirmLabel: "Gỡ host",
+      variant: "danger"
+    });
+    if (!confirmed) return false;
 
     try {
       const coHostRef = ref(rtdb, `rooms/${currentRoomId}/info/coHosts/${member.uid}`);
@@ -422,14 +458,14 @@ export function App() {
       });
 
       if (!result.committed) {
-        window.alert("Không thể gỡ quyền host. Hãy kiểm tra danh sách host rồi thử lại.");
+        await showAlert("Không thể gỡ quyền host. Hãy kiểm tra danh sách host rồi thử lại.");
         return false;
       }
 
       return true;
     } catch (error) {
       console.error("Failed to remove co-host:", error);
-      window.alert(error.message || "Không thể gỡ quyền host lúc này.");
+      await showAlert(error.message || "Không thể gỡ quyền host lúc này.");
       return false;
     }
   };
@@ -446,16 +482,19 @@ export function App() {
     const targetRoomId = currentRoomId;
 
     if (isRoomOwner && targetRoomId && !roomError) {
-      const confirmDelete = window.confirm(
-        `Bạn là Chủ phòng (Host).\nNếu bạn rời phòng, phòng "${targetRoomId}" sẽ bị XÓA và toàn bộ thành viên sẽ được giải tán.\nBạn có chắc chắn muốn rời và xóa phòng không?`
-      );
-      if (!confirmDelete) return false;
+      const confirmed = await showDialog({
+        title: "Giải tán phòng?",
+        message: `Bạn là Chủ phòng (Host).\nNếu bạn rời phòng, phòng "${targetRoomId}" sẽ bị XÓA và toàn bộ thành viên sẽ được giải tán.\nBạn có chắc chắn muốn rời và xóa phòng không?`,
+        confirmLabel: "Rời và xóa phòng",
+        variant: "danger"
+      });
+      if (!confirmed) return false;
 
       try {
         await remove(ref(rtdb, `rooms/${targetRoomId}`));
       } catch (err) {
         console.error("Lỗi khi xóa phòng khỏi RTDB:", err);
-        window.alert(err.message || "Không thể giải tán phòng. Vui lòng thử lại.");
+        await showAlert(err.message || "Không thể giải tán phòng. Vui lòng thử lại.");
         return false;
       }
     }
@@ -673,6 +712,14 @@ export function App() {
   // Host: Remove from Queue
   const handleRemoveFromQueue = async (itemId) => {
     if (!isHost || !currentRoomId) return;
+    const item = queueItems.find((queueItem) => queueItem.id === itemId);
+    const confirmed = await showDialog({
+      title: "Xóa bài khỏi danh sách?",
+      message: `Bạn có chắc chắn muốn xóa bài "${item?.title || "bài hát này"}" khỏi danh sách chờ không?`,
+      confirmLabel: "Xóa bài",
+      variant: "danger"
+    });
+    if (!confirmed) return;
     await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${itemId}`));
   };
 
@@ -1111,6 +1158,12 @@ export function App() {
       <ConfigModal
         isOpen={isConfigOpen}
         onClose={() => setIsConfigOpen(false)}
+      />
+
+      <AppDialog
+        config={dialogConfig}
+        onConfirm={() => closeDialog(true)}
+        onCancel={() => closeDialog(false)}
       />
     </div>
   );

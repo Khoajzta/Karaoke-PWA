@@ -89,6 +89,7 @@ export const SongSearch = ({
   const [urlPreview, setUrlPreview] = useState(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [urlError, setUrlError] = useState("");
+  const urlRequestIdRef = useRef(0);
 
   const [addedId, setAddedId] = useState(null);
   const [addedToast, setAddedToast] = useState(null);
@@ -264,7 +265,7 @@ export const SongSearch = ({
   const suggestions = querySuggestions.map((title) => ({ title, videoId: `query-${title}` }));
 
   // Resolve pasted URL
-  const resolveUrl = async (rawUrl) => {
+  const resolveUrl = async (rawUrl, requestId = ++urlRequestIdRef.current) => {
     const val = rawUrl?.trim();
     if (!val) {
       setUrlError("Vui lòng nhập hoặc dán link YouTube!");
@@ -281,11 +282,13 @@ export const SongSearch = ({
       setIsResolvingUrl(true);
       setUrlError("");
       const info = await fetchYouTubeOEmbed(videoId);
+      if (requestId !== urlRequestIdRef.current) return;
       setUrlPreview(info);
     } catch (err) {
+      if (requestId !== urlRequestIdRef.current) return;
       setUrlError("Không thể lấy thông tin video.");
     } finally {
-      setIsResolvingUrl(false);
+      if (requestId === urlRequestIdRef.current) setIsResolvingUrl(false);
     }
   };
 
@@ -293,9 +296,13 @@ export const SongSearch = ({
     const val = e.target.value;
     setUrlInput(val);
     setUrlError("");
+    setUrlPreview(null);
+    const requestId = ++urlRequestIdRef.current;
     const videoId = extractYouTubeId(val);
     if (videoId) {
-      resolveUrl(val);
+      resolveUrl(val, requestId);
+    } else {
+      setIsResolvingUrl(false);
     }
   };
 

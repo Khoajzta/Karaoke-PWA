@@ -28,6 +28,8 @@ import {
 const SortableQueueItem = ({
   item,
   index,
+  pendingCount,
+  queueLimit,
   isHost,
   onPlayNow,
   onRemove
@@ -90,6 +92,11 @@ const SortableQueueItem = ({
         <div className="flex items-center gap-1.5 text-xs md:text-[10px] text-slate-400 mt-1 md:mt-0.5">
           <User className="w-3.5 h-3.5 md:w-3 md:h-3 text-slate-500" />
           <span className="truncate">{item.addedBy || "Thành viên"}</span>
+          {item.addedByUid && (
+            <span className="flex-shrink-0 rounded bg-slate-800 px-1.5 py-0.5 font-medium text-slate-300" title="Số bài đang chờ của người này">
+              {pendingCount}/{queueLimit}
+            </span>
+          )}
         </div>
       </div>
 
@@ -105,7 +112,7 @@ const SortableQueueItem = ({
             <Play className="w-4 h-4 md:w-3.5 md:h-3.5 fill-current" />
           </button>
           <button
-            onClick={() => onRemove(item.id)}
+            onClick={() => onRemove(item)}
             aria-label={`Xóa khỏi danh sách chờ: ${item.title}`}
             title="Xóa bài khỏi danh sách"
             className="w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 rounded-xl active:scale-95 transition"
@@ -121,6 +128,7 @@ const SortableQueueItem = ({
 export const QueueList = ({
   queueItems = [],
   isHost,
+  queueLimit = 1,
   onReorder,
   onPlayNow,
   onRemove
@@ -135,6 +143,10 @@ export const QueueList = ({
       coordinateGetter: sortableKeyboardCoordinates
     })
   );
+  const pendingByMember = queueItems.reduce((counts, item) => {
+    if (item.addedByUid) counts[item.addedByUid] = (counts[item.addedByUid] || 0) + 1;
+    return counts;
+  }, {});
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -188,6 +200,8 @@ export const QueueList = ({
                   key={item.id}
                   item={item}
                   index={index}
+                  pendingCount={pendingByMember[item.addedByUid] || 0}
+                  queueLimit={queueLimit}
                   isHost={isHost}
                   onPlayNow={onPlayNow}
                   onRemove={onRemove}

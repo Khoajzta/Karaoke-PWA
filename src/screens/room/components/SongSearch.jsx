@@ -66,10 +66,14 @@ export const SongSearch = ({
   onUndoAdd,
   onPlayNow,
   playback,
+  queueSlotsUsed = 0,
+  queueLimit = 1,
   onOpenConfig,
   onBack
 }) => {
   const { user } = useAuth();
+  const queueLimitReached = queueSlotsUsed >= queueLimit;
+  const queueLimitMessage = `Đã đủ ${queueLimit} bài đang chờ (${queueSlotsUsed}/${queueLimit}). Hãy đợi một bài được phát hoặc nhờ host tăng giới hạn.`;
   const { favorites, isFavorite, toggleFavorite } = useLocalFavorites(user?.uid);
   const [activeTab, setActiveTab] = useState("search"); // 'search' | 'url' | 'favorites'
   const [searchQuery, setSearchQuery] = useState("");
@@ -339,6 +343,7 @@ export const SongSearch = ({
 
   const handleAdd = async (item) => {
     try {
+      if (queueLimitReached) throw new Error(queueLimitMessage);
       const queuedItem = await onAddToQueue({
       videoId: item.videoId,
       title: item.title,
@@ -477,6 +482,13 @@ export const SongSearch = ({
         </button>
       </div>
 
+      {queueLimitReached && (
+        <div role="status" className="mb-3 flex flex-shrink-0 items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] leading-5 text-amber-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <span>{queueLimitMessage}</span>
+        </div>
+      )}
+
       {/* Tab 1: Search */}
       {activeTab === "search" && (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -602,12 +614,15 @@ export const SongSearch = ({
                     )}
                     <button
                       onClick={() => handleAdd(item)}
+                      disabled={queueLimitReached}
                       aria-label={`${isJustAdded ? "Đã thêm" : "Thêm vào danh sách chờ"}: ${item.title}`}
-                      title="Thêm vào danh sách chờ"
-                        className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition ${
-                        isJustAdded
-                          ? "bg-emerald-500 text-white"
-                          : "bg-red-500 hover:bg-red-600 text-white"
+                      title={queueLimitReached ? queueLimitMessage : "Thêm vào danh sách chờ"}
+                      className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm transition ${
+                        queueLimitReached
+                          ? "cursor-not-allowed bg-slate-700 text-slate-400"
+                          : isJustAdded
+                            ? "bg-emerald-500 text-white active:scale-95"
+                            : "bg-red-500 text-white active:scale-95 hover:bg-red-600"
                       }`}
                     >
                       {isJustAdded ? <Check className="w-4 h-4 md:w-3.5 md:h-3.5" /> : <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />}
@@ -657,10 +672,15 @@ export const SongSearch = ({
                 <button
                   type="button"
                   onClick={() => handleAdd(item)}
-                  title={isJustAdded ? "Đã thêm vào danh sách chờ" : "Thêm bài yêu thích vào danh sách chờ"}
+                  disabled={queueLimitReached}
+                  title={queueLimitReached ? queueLimitMessage : isJustAdded ? "Đã thêm vào danh sách chờ" : "Thêm bài yêu thích vào danh sách chờ"}
                   aria-label={isJustAdded ? "Đã thêm vào danh sách chờ" : "Thêm bài yêu thích vào danh sách chờ"}
-                  className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition ${
-                    isJustAdded ? "bg-emerald-500 text-white" : "bg-red-500 hover:bg-red-600 text-white"
+                  className={`w-9 h-9 md:w-auto md:h-auto p-0 md:p-1.5 flex items-center justify-center rounded-xl shadow-sm transition ${
+                    queueLimitReached
+                      ? "cursor-not-allowed bg-slate-700 text-slate-400"
+                      : isJustAdded
+                        ? "bg-emerald-500 text-white active:scale-95"
+                        : "bg-red-500 text-white active:scale-95 hover:bg-red-600"
                   }`}
                 >
                   {isJustAdded ? <Check className="w-4 h-4 md:w-3.5 md:h-3.5" /> : <Plus className="w-4 h-4 md:w-3.5 md:h-3.5" />}
@@ -742,10 +762,12 @@ export const SongSearch = ({
                 <button
                   type="button"
                   onClick={() => handleAdd(urlPreview)}
-                  className="flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg shadow-red-500/25 transition"
+                  disabled={queueLimitReached}
+                  title={queueLimitReached ? queueLimitMessage : "Thêm vào danh sách chờ"}
+                  className={`flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 px-3 rounded-xl shadow-lg transition ${queueLimitReached ? "cursor-not-allowed bg-slate-700 text-slate-400" : "bg-red-500 text-white shadow-red-500/25 hover:bg-red-600 active:scale-95"}`}
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Vào danh sách</span>
+                  <span>{queueLimitReached ? "Đã đủ lượt" : "Vào danh sách"}</span>
                 </button>
 
                 <button

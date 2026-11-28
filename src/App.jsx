@@ -45,6 +45,33 @@ import {
 } from "lucide-react";
 
 const createPlaybackToken = (userId) => `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+const DEFAULT_MEMBER_QUEUE_LIMIT = 1;
+const MAX_MEMBER_QUEUE_LIMIT = 20;
+
+const getQueueItems = (room) => {
+  const legacyItems = Object.entries(room?.queue || {})
+    .filter(([, item]) => item?.videoId)
+    .map(([queueId, item]) => ({
+      ...item,
+      id: `legacy:${queueId}`,
+      queueId,
+      queueOwnerUid: "__legacy__",
+      queueSource: "queue",
+      dbPath: `queue/${queueId}`
+    }));
+  const memberItems = Object.entries(room?.memberQueue || {}).flatMap(([ownerUid, memberQueue]) =>
+    Object.entries(memberQueue || {}).filter(([, item]) => item?.videoId).map(([queueId, item]) => ({
+      ...item,
+      id: `member:${ownerUid}:${queueId}`,
+      queueId,
+      queueOwnerUid: ownerUid,
+      queueSource: "memberQueue",
+      dbPath: `memberQueue/${ownerUid}/${queueId}`
+    }))
+  );
+
+  return [...legacyItems, ...memberItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+};
 
 export function App() {
   const { user, loading: authLoading, isConfigured, logout } = useAuth();
@@ -63,6 +90,9 @@ export function App() {
   const [pendingCreateRoom, setPendingCreateRoom] = useState(false);
   const [copiedRule, setCopiedRule] = useState(false);
   const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
+  const [queueAddsInProgress, setQueueAddsInProgress] = useState(0);
+  const queueAddsInProgressRef = useRef(0);
+  const pendingQueueEntryIdsRef = useRef(new Set());
 
   // Modals state
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -364,15 +394,19 @@ export function App() {
   const memberCount = membersList.length;
 
   // Convert queue object to sorted array by `order`
-  const queueItems = useMemo(() => {
-    if (!roomData?.queue) return [];
-    return Object.entries(roomData.queue)
-      .map(([id, item]) => ({
-        id,
-        ...item
-      }))
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-  }, [roomData?.queue]);
+  const queueItems = useMemo(() => getQueueItems(roomData), [roomData?.queue, roomData?.memberQueue]);
+  const maxSongsPerMember = Math.min(MAX_MEMBER_QUEUE_LIMIT, Math.max(
+    1,
+    Number(roomData?.queueSettings?.maxSongsPerMember) || DEFAULT_MEMBER_QUEUE_LIMIT
+  ));
+  const currentMemberQueueCount = user?.uid
+    ? queueItems.filter((item) => item.addedByUid === user.uid).length
+    : 0;
+  const locallyQueuedAddsInProgress = queueItems.filter((item) =>
+    item.addedByUid === user?.uid && pendingQueueEntryIdsRef.current.has(item.queueId)
+  ).length;
+  const queueSlotsUsed = Math.max(0, currentMemberQueueCount + queueAddsInProgress - locallyQueuedAddsInProgress);
+  const queueLimitReached = queueSlotsUsed >= maxSongsPerMember;
 
   // Handle Join Room from Lobby
   const handleJoinRoom = (code, asCreator = false, roomGuestName = "") => {
@@ -535,40 +569,92 @@ export function App() {
 
   // Add song to Queue
   const handleAddToQueue = async (song) => {
-    if (!currentRoomId) return;
-    const maxOrder = queueItems.length > 0 
-      ? Math.max(...queueItems.map((q) => q.order || 0)) 
-      : 0;
-
-    const sequenceRef = ref(rtdb, `rooms/${currentRoomId}/queueSequence`);
-    const sequenceResult = await runTransaction(sequenceRef, (currentSequence) => {
-      const sequence = Number.isFinite(currentSequence) ? currentSequence : 0;
-      return Math.max(sequence + 1, maxOrder + 1);
-    });
-    if (!sequenceResult.committed) {
-      throw new Error("Không thể xếp thứ tự bài hát. Vui lòng thử lại.");
+    if (!currentRoomId || !user?.uid) return;
+    const activeLimit = maxSongsPerMember;
+    const limitError = `Bạn đã đạt giới hạn ${activeLimit} bài đang chờ. Hãy đợi phát bớt bài hoặc nhờ host tăng giới hạn.`;
+    const queuedForMember = queueItems.filter((item) => item.addedByUid === user.uid).length;
+    const visiblePendingAdds = queueItems.filter((item) =>
+      item.addedByUid === user.uid && pendingQueueEntryIdsRef.current.has(item.queueId)
+    ).length;
+    if (queuedForMember + queueAddsInProgressRef.current - visiblePendingAdds >= activeLimit) {
+      throw new Error(limitError);
     }
-    const order = sequenceResult.snapshot.val();
-    const queueRef = ref(rtdb, `rooms/${currentRoomId}/queue`);
-    const queueEntry = await push(queueRef, {
-      videoId: song.videoId,
-      title: song.title,
-      thumbnail: song.thumbnail,
-      addedBy: song.addedBy || user?.displayName || "Khách",
-      addedByUid: song.addedByUid || user?.uid || "anon",
-      order,
-      createdAt: getServerTime()
-    });
-    return { id: queueEntry.key, order, position: queueItems.length + 1 };
+
+    queueAddsInProgressRef.current += 1;
+    setQueueAddsInProgress(queueAddsInProgressRef.current);
+    let pendingQueueEntryId = null;
+    try {
+      const memberQueueRef = ref(rtdb, `rooms/${currentRoomId}/memberQueue/${user.uid}`);
+      const legacyPendingCount = queueItems.filter((item) =>
+        item.queueSource === "queue" && item.addedByUid === user.uid
+      ).length;
+
+      const maxOrder = queueItems.length > 0
+        ? Math.max(...queueItems.map((q) => q.order || 0))
+        : 0;
+
+      const sequenceRef = ref(rtdb, `rooms/${currentRoomId}/queueSequence`);
+      const sequenceResult = await runTransaction(sequenceRef, (currentSequence) => {
+        const sequence = Number.isFinite(currentSequence) ? currentSequence : 0;
+        return Math.max(sequence + 1, maxOrder + 1);
+      });
+      if (!sequenceResult.committed) {
+        throw new Error("Không thể xếp thứ tự bài hát. Vui lòng thử lại.");
+      }
+      const order = sequenceResult.snapshot.val();
+      const queueEntryRef = push(memberQueueRef);
+      pendingQueueEntryId = queueEntryRef.key;
+      pendingQueueEntryIdsRef.current.add(pendingQueueEntryId);
+      const queueItem = {
+        videoId: song.videoId,
+        title: song.title,
+        thumbnail: song.thumbnail,
+        addedBy: roomData?.members?.[user.uid]?.name || song.addedBy || user.displayName || "Khách",
+        addedByUid: user.uid,
+        order,
+        createdAt: getServerTime()
+      };
+      let fullDuringRequest = false;
+      const queueResult = await runTransaction(memberQueueRef, (currentQueue) => {
+        const currentItems = currentQueue || {};
+        if (Object.keys(currentItems).length + legacyPendingCount >= activeLimit) {
+          fullDuringRequest = true;
+          return;
+        }
+        return { ...currentItems, [queueEntryRef.key]: queueItem };
+      });
+      if (!queueResult.committed) {
+        if (fullDuringRequest) throw new Error(limitError);
+        throw new Error("Không thể thêm bài vào hàng chờ. Vui lòng thử lại.");
+      }
+      return { id: queueEntryRef.key, ownerUid: user.uid, order, position: queueItems.length + 1 };
+    } finally {
+      if (pendingQueueEntryId) pendingQueueEntryIdsRef.current.delete(pendingQueueEntryId);
+      queueAddsInProgressRef.current = Math.max(0, queueAddsInProgressRef.current - 1);
+      setQueueAddsInProgress(queueAddsInProgressRef.current);
+    }
   };
 
   const handleUndoQueueAddition = async (itemId) => {
     if (!currentRoomId || !user?.uid || !itemId) return false;
-    const itemRef = ref(rtdb, `rooms/${currentRoomId}/queue/${itemId}`);
+    const itemRef = ref(rtdb, `rooms/${currentRoomId}/memberQueue/${user.uid}/${itemId}`);
     const snapshot = await get(itemRef);
     if (!snapshot.exists() || snapshot.val()?.addedByUid !== user.uid) return false;
     await remove(itemRef);
     return true;
+  };
+
+  const handleSetQueueLimit = async (limit) => {
+    if (!isHost || !currentRoomId) return;
+    const nextLimit = Math.min(MAX_MEMBER_QUEUE_LIMIT, Math.max(1, Number(limit) || DEFAULT_MEMBER_QUEUE_LIMIT));
+    try {
+      await update(ref(rtdb, `rooms/${currentRoomId}/queueSettings`), {
+        maxSongsPerMember: nextLimit
+      });
+    } catch (error) {
+      console.error("Could not update the per-member queue limit:", error);
+      await showAlert(error.message || "Không thể cập nhật giới hạn bài chờ.");
+    }
   };
 
   // Host: Play a song immediately (Play Now)
@@ -587,8 +673,8 @@ export function App() {
     });
 
     // If item was in queue, remove it
-    if (song.id) {
-      await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${song.id}`));
+    if (song.dbPath) {
+      await remove(ref(rtdb, `rooms/${currentRoomId}/${song.dbPath}`));
     }
   };
 
@@ -611,8 +697,7 @@ export function App() {
       if (!currentPlayback || (expectedVideoId && currentPlayback.videoId !== expectedVideoId)) return;
       if (endedVideoId && currentPlayback.state !== "playing") return;
 
-      let nextEntry = Object.entries(room.queue || {})
-        .sort(([, a], [, b]) => (a?.order || 0) - (b?.order || 0))[0];
+      let nextEntry = getQueueItems(room)[0] || null;
       const playbackRef = ref(rtdb, `rooms/${currentRoomId}/playback`);
       const previousAdvanceToken = currentPlayback.advanceToken ?? null;
       let requestToken = createPlaybackToken(user.uid);
@@ -622,13 +707,15 @@ export function App() {
         // currently playing video. RTDB Rules validate this before allowing
         // the playback transaction below.
         if (!endedVideoId || currentPlayback.state !== "playing") return;
-        const [nextQueueId, nextSong] = nextEntry || ["__none__", null];
+        const nextSong = nextEntry;
         advanceRequestRef = ref(rtdb, `rooms/${currentRoomId}/advanceClaims/${user.uid}`);
         const proposedClaim = {
           requestedBy: user.uid,
           videoId: currentPlayback.videoId,
           expectedAdvanceToken: previousAdvanceToken,
-          queueId: nextQueueId,
+          queueId: nextSong?.queueId || "__none__",
+          queueOwnerUid: nextSong?.queueOwnerUid || "__none__",
+          queueSource: nextSong?.queueSource || "__none__",
           nextVideoId: nextSong?.videoId || "__none__",
           nextTitle: nextSong?.title || "__none__",
           requestToken,
@@ -648,9 +735,13 @@ export function App() {
         if (claim.queueId === "__none__") {
           nextEntry = null;
         } else {
-          const claimedSong = room.queue?.[claim.queueId];
+          const claimedSong = getQueueItems(room).find((item) =>
+            item.queueId === claim.queueId &&
+            item.queueOwnerUid === claim.queueOwnerUid &&
+            item.queueSource === claim.queueSource
+          );
           if (!claimedSong || claimedSong.videoId !== claim.nextVideoId || claimedSong.title !== claim.nextTitle) return;
-          nextEntry = [claim.queueId, claimedSong];
+          nextEntry = claimedSong;
         }
       }
 
@@ -660,11 +751,10 @@ export function App() {
         if (endedVideoId && latestPlayback.state !== "playing") return;
 
         if (nextEntry) {
-          const [, nextSong] = nextEntry;
           return {
             ...latestPlayback,
-            videoId: nextSong.videoId,
-            title: nextSong.title,
+            videoId: nextEntry.videoId,
+            title: nextEntry.title,
             state: "playing",
             anchorServerTime: getServerTime() + 3000,
             pausedAt: 0,
@@ -682,7 +772,7 @@ export function App() {
 
       // Remove the queue item only after the playback transaction wins.
       if (result.committed && nextEntry) {
-        await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${nextEntry[0]}`));
+        await remove(ref(rtdb, `rooms/${currentRoomId}/${nextEntry.dbPath}`));
       }
     } catch (error) {
       console.warn("Could not advance the room playback:", error);
@@ -704,15 +794,14 @@ export function App() {
     if (!isHost || !currentRoomId) return;
     const updates = {};
     newOrderedItems.forEach((item, index) => {
-      updates[`rooms/${currentRoomId}/queue/${item.id}/order`] = index + 1;
+      updates[`rooms/${currentRoomId}/${item.dbPath}/order`] = index + 1;
     });
     await update(ref(rtdb), updates);
   };
 
   // Host: Remove from Queue
-  const handleRemoveFromQueue = async (itemId) => {
+  const handleRemoveFromQueue = async (item) => {
     if (!isHost || !currentRoomId) return;
-    const item = queueItems.find((queueItem) => queueItem.id === itemId);
     const confirmed = await showDialog({
       title: "Xóa bài khỏi danh sách?",
       message: `Bạn có chắc chắn muốn xóa bài "${item?.title || "bài hát này"}" khỏi danh sách chờ không?`,
@@ -720,7 +809,7 @@ export function App() {
       variant: "danger"
     });
     if (!confirmed) return;
-    await remove(ref(rtdb, `rooms/${currentRoomId}/queue/${itemId}`));
+    await remove(ref(rtdb, `rooms/${currentRoomId}/${item.dbPath}`));
   };
 
   const copyRuleSnippet = () => {
@@ -870,6 +959,8 @@ export function App() {
                       playback={roomData?.playback}
                       peerPositions={roomData?.members}
                       onNextSong={handleNextSong}
+                      queueLimit={maxSongsPerMember}
+                      onQueueLimitChange={handleSetQueueLimit}
                       playerRef={hostPlayerRef}
                     />
 
@@ -918,6 +1009,7 @@ export function App() {
                         <QueueList
                           queueItems={queueItems}
                           isHost={true}
+                          queueLimit={maxSongsPerMember}
                           onReorder={handleReorderQueue}
                           onPlayNow={handlePlayNow}
                           onRemove={handleRemoveFromQueue}
@@ -927,6 +1019,8 @@ export function App() {
                       {hostMobileTab === "search" && (
                         <SongSearch
                           isHost={true}
+                        queueSlotsUsed={queueSlotsUsed}
+                        queueLimit={maxSongsPerMember}
                           onBack={() => setHostMobileTab("queue")}
                           onAddToQueue={handleAddToQueue}
                           onUndoAdd={handleUndoQueueAddition}
@@ -1005,6 +1099,8 @@ export function App() {
                     <div className="flex-1 min-h-0 overflow-hidden">
                       <SongSearch
                         isHost={true}
+                        queueSlotsUsed={queueSlotsUsed}
+                        queueLimit={maxSongsPerMember}
                         onAddToQueue={handleAddToQueue}
                         onUndoAdd={handleUndoQueueAddition}
                         onPlayNow={handlePlayNow}
@@ -1018,6 +1114,7 @@ export function App() {
                       <QueueList
                         queueItems={queueItems}
                         isHost={true}
+                        queueLimit={maxSongsPerMember}
                         onReorder={handleReorderQueue}
                         onPlayNow={handlePlayNow}
                         onRemove={handleRemoveFromQueue}
@@ -1080,6 +1177,7 @@ export function App() {
                       <QueueList
                         queueItems={queueItems}
                         isHost={false}
+                        queueLimit={maxSongsPerMember}
                         onReorder={handleReorderQueue}
                         onPlayNow={handlePlayNow}
                         onRemove={handleRemoveFromQueue}
@@ -1087,6 +1185,8 @@ export function App() {
                     ) : (
                       <SongSearch
                         isHost={false}
+                        queueSlotsUsed={queueSlotsUsed}
+                        queueLimit={maxSongsPerMember}
                         onBack={() => setMobileTab("queue")}
                         onAddToQueue={handleAddToQueue}
                         onUndoAdd={handleUndoQueueAddition}
@@ -1103,6 +1203,8 @@ export function App() {
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <SongSearch
                       isHost={false}
+                      queueSlotsUsed={queueSlotsUsed}
+                      queueLimit={maxSongsPerMember}
                       onAddToQueue={handleAddToQueue}
                       onUndoAdd={handleUndoQueueAddition}
                       onPlayNow={handlePlayNow}
@@ -1114,6 +1216,7 @@ export function App() {
                     <QueueList
                       queueItems={queueItems}
                       isHost={false}
+                      queueLimit={maxSongsPerMember}
                       onReorder={handleReorderQueue}
                       onPlayNow={handlePlayNow}
                       onRemove={handleRemoveFromQueue}

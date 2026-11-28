@@ -79,7 +79,10 @@ export const RoomLobby = ({ onJoinRoom, onRequireAuth, urlRoomCode, pendingCreat
           advanceToken: "",
           memberMuted: false
         },
-        queueSequence: 0
+        queueSequence: 0,
+        queueSettings: {
+          maxSongsPerMember: 1
+        }
       };
 
       let roomId = "";

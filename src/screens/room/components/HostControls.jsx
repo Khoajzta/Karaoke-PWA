@@ -10,7 +10,10 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  Smartphone
+  Smartphone,
+  Users,
+  Minus,
+  Plus
 } from "lucide-react";
 import { rtdb, ref, update, getServerTime } from "../../../firebase";
 import { getFastestPlaybackTarget } from "../../../utils/playbackSync";
@@ -22,6 +25,8 @@ export const HostControls = ({
   playback,
   peerPositions = {},
   onNextSong,
+  queueLimit = 1,
+  onQueueLimitChange,
   playerRef
 }) => {
   const [currentTime, setCurrentTime] = useState(0);
@@ -213,6 +218,34 @@ export const HostControls = ({
           <RotateCcw className="w-3 h-3 text-emerald-400" />
           <span>Đồng bộ thời gian</span>
         </button>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-slate-300">
+          <Users className="h-4 w-4 flex-shrink-0 text-red-400" />
+          <span className="truncate">Giới hạn bài đang chờ mỗi người</span>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onQueueLimitChange?.(queueLimit - 1)}
+            disabled={queueLimit <= 1}
+            aria-label="Giảm giới hạn bài chờ mỗi người"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="min-w-16 text-center text-xs font-bold text-white">{queueLimit} bài/người</span>
+          <button
+            type="button"
+            onClick={() => onQueueLimitChange?.(queueLimit + 1)}
+            disabled={queueLimit >= 20}
+            aria-label="Tăng giới hạn bài chờ mỗi người"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Main Controls */}
